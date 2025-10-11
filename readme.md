@@ -107,6 +107,55 @@
 
 ---
 
+### 4改) 基礎設施 （Infra Owner）
+**目標**：一鍵建立/銷毀 Demo 環境，並在 Docker 容器中啟動一個 Vue 靜態網頁（模擬前端）。
+
+**你要產出**
+- `Dockerfile`：用於構建包含 Vue 靜態資源的 Nginx 服務映像檔。
+- `docker-compose.yaml`：用於一鍵啟動/停止容器，將服務映射到主機埠口（例如 `8080`）。
+- **前端模擬頁面**：一個簡單的 `index.html` 或 Vue 靜態構建結果（如果前端已產出），用於驗證服務可用性。
+- `scripts/smoke.sh`：一個簡單的腳本，用於執行 `docker ps` 和 `curl http://localhost:8080` 快照，確認服務啟動並可訪問。
+
+**你要完成的工項**
+- 確保 Dockerfile 使用輕量級的基礎映像檔（如 `nginx:alpine`）。
+- `make docker-up` / `make docker-down` 腳本（或直接使用 `docker-compose`）。
+- **服務 URL Key**：確保服務在 `http://localhost:8080` 可訪問，以作為後續步驟的服務 URL Key 依據。
+
+**介面（消費/輸出）**
+- 消費：Vue 前端產出的靜態檔案（若有），或一個簡單的 `index.html`。
+- 輸出：**服務 URL** (`http://localhost:8080`)、**容器名稱/ID** 摘要。
+
+**驗收（DoD）**
+- **10s** 內容器啟動並 Ready。
+- 主機上可透過 `curl http://localhost:8080` 取得 HTML 內容（HTTP 200）。
+- `make docker-down` 可完全清理環境。
+
+## 相關開發流程（Phase 調整）
+
+以下是針對 B) 開發流程中，與 Infra Owner 相關步驟的調整：
+
+| 階段 | 輸入 | 動作 | 輸出 | 驗收（DoD） | Owner |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Phase 1** | Repo、`Dockerfile`、`docker-compose.yaml` | `make docker-up`；`scripts/smoke.sh` 產快照 | 啟動的容器與快照 | 10s 內 `curl http://localhost:8080` 200 OK | Infra |
+| **Phase 2** | N/A (此步驟被移除) | N/A | N/A | N/A | N/A |
+| **Phase 3** | N/A (此步驟被移除) | N/A | N/A | N/A | N/A |
+
+### 調整說明：
+* **Phase 1** 直接替換成 **Docker 啟動**。由於目標是靜態網頁，啟動時間應遠快於 K8s 叢集。
+* **Phase 2** (測試 VM) 和 **Phase 3** (示範服務) 因不再需要 K8s 和 VM 而**被移除**。
+* 原先 Infra 提供給 Backend 和 Validation 的介面，現在簡化為 **服務 URL** (`http://localhost:8080`)。
+
+---
+
+## 依賴順序與關鍵路徑（調整後）
+
+1) **Infra (Docker)** → 2) **Validation (Ansible/其他驗證)** → 3) **Backend (流程與事件)** → 4) **Frontend (串接)** ＋ **AI (dry‑run → execute)** → 5) **Report (PDF)**
+
+### 驗收總表（Infra 部分核對）
+
+* **Infra**：容器 **10s** Ready；**服務 URL** 可 `curl` 200。
+---
+
 ### 5) 驗證與報告（Validation & Report Owner）
 **目標**：以 Ansible 驗證可用性並產出可稽核報告。
 
