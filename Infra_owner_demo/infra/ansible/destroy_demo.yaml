@@ -1,0 +1,21 @@
+---
+- name: Destroy demo infra (stop & remove containers, remove image)
+  hosts: local
+  gather_facts: false
+  tasks:
+    - name: Stop and remove docker compose services
+      community.docker.docker_compose:
+        project_src: "{{ playbook_dir }}/.."
+        state: absent
+      register: compose_down
+
+    - name: Remove docker image
+      community.docker.docker_image:
+        name: vue-static-demo
+        tag: latest
+        state: absent
+      register: image_removed
+
+    - name: Show results
+      debug:
+        msg: "Compose down: {{ compose_down }}, image removed: {{ image_removed }}"

@@ -10,7 +10,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # 將 Vue 靜態檔案複製到 Nginx 的服務目錄
 # 假設 frontend/dist/ 是 Vue 專案編譯後的靜態檔案
-COPY ../frontend/dist /usr/share/nginx/html/
+COPY dist /usr/share/nginx/html/
 
 # 容器內部 Nginx 預設運行在 80 端口
 EXPOSE 80

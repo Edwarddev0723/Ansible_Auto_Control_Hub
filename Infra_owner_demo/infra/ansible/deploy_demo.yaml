@@ -1,0 +1,31 @@
+---
+- name: Deploy demo infra (build frontend image, start containers)
+  hosts: local
+  gather_facts: false
+  tasks:
+    - name: Ensure frontend build exists
+      command: npm install
+      args:
+        chdir: "{{ playbook_dir }}/../../frontend"
+      register: npm_install
+    - name: Build frontend
+      command: npm run build
+      args:
+        chdir: "{{ playbook_dir }}/../../frontend"
+      register: npm_build
+    - name: Build docker image
+      community.docker.docker_image:
+        name: vue-static-demo
+        tag: latest
+        build:
+          path: "{{ playbook_dir }}/.."
+      register: image_build
+    - name: Start docker compose
+      community.docker.docker_compose:
+        project_src: "{{ playbook_dir }}/.."
+        build: yes
+        state: present
+      register: compose_up
+    - name: Show result
+      debug:
+        msg: "Compose result: {{ compose_up }}"
