@@ -1,4 +1,4 @@
 # Requirements for Ansible collections used by the playbooks
 collections:
   - name: community.docker
-    version: "^3.0.0"
+    version: "4.8.1"

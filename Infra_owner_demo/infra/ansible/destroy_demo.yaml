@@ -1,21 +1,20 @@
----
-- name: Destroy demo infra (stop & remove containers, remove image)
+- name: 銷毀 demo 基礎設施 (停止並移除容器，刪除映像檔)
   hosts: local
   gather_facts: false
   tasks:
-    - name: Stop and remove docker compose services
-      community.docker.docker_compose:
+    - name: 停止並移除 Docker Compose 服務
+      community.docker.docker_compose_v2:
         project_src: "{{ playbook_dir }}/.."
         state: absent
       register: compose_down
 
-    - name: Remove docker image
+    - name: 刪除 Docker 映像檔
       community.docker.docker_image:
         name: vue-static-demo
         tag: latest
         state: absent
       register: image_removed
 
-    - name: Show results
+    - name: 顯示結果
       debug:
         msg: "Compose down: {{ compose_down }}, image removed: {{ image_removed }}"

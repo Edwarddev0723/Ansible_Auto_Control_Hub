@@ -1,31 +1,31 @@
----
-- name: Deploy demo infra (build frontend image, start containers)
-  hosts: local
+# 部署示範基礎設施（構建前端映像，啟動容器）
+- name: 部署示範基礎設施（構建前端映像，啟動容器）
+  hosts: localhost
   gather_facts: false
   tasks:
-    - name: Ensure frontend build exists
+    # 確保前端構建依賴項存在
+    - name: 確保前端構建依賴項存在
       command: npm install
       args:
         chdir: "{{ playbook_dir }}/../../frontend"
       register: npm_install
-    - name: Build frontend
+
+    # 構建前端靜態資源
+    - name: 構建前端靜態資源
       command: npm run build
       args:
         chdir: "{{ playbook_dir }}/../../frontend"
       register: npm_build
-    - name: Build docker image
-      community.docker.docker_image:
-        name: vue-static-demo
-        tag: latest
-        build:
-          path: "{{ playbook_dir }}/.."
-      register: image_build
-    - name: Start docker compose
-      community.docker.docker_compose:
-        project_src: "{{ playbook_dir }}/.."
-        build: yes
+    
+    # 啟動 Docker Compose（如有必要，構建映像）
+    - name: 啟動 Docker Compose（如有必要，構建映像）
+      community.docker.docker_compose_v2:
+        project_src: "{{ playbook_dir }}/.."  # 此行需縮排
+        build: always
         state: present
       register: compose_up
-    - name: Show result
+
+    # 顯示結果
+    - name: 顯示結果
       debug:
-        msg: "Compose result: {{ compose_up }}"
+        msg: "Compose 結果: {{ compose_up }}"
