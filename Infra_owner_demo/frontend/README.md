@@ -14,5 +14,4 @@ npm run dev
 
 ```powershell
 npm run build
-npm run preview
 ```
