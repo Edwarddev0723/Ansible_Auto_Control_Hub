@@ -1,0 +1,8 @@
+---
+# Variables specific to the web group
+
+# Inventory group identifier
+inventory_group: "web"
+
+# Source file paths (relative to playbook directory)
+frontend_source_dir: "{{ repo_root }}/frontend"

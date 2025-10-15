@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "ansible-mcp": {
+      "command": "python",
+      "args": [
+        "/Users/edwardhuang/Documents/GitHub/Ansible_Auto_Control_Hub/mcp-ansible/src/ansible_mcp/server.py"
+      ],
+      "env": {
+        "MCP_ANSIBLE_PROJECT_ROOT": "/Users/edwardhuang/Documents/GitHub/Ansible_Auto_Control_Hub/ansible_projects/infra_owner_deploy",
+        "MCP_ANSIBLE_INVENTORY": "/Users/edwardhuang/Documents/GitHub/Ansible_Auto_Control_Hub/ansible_projects/infra_owner_deploy/inventory/hosts.ini",
+        "MCP_ANSIBLE_PROJECT_NAME": "infra_owner_deploy"
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+---
+# Global Variables for All Hosts
+# These variables apply to all inventory groups
+
+# Repository and deployment paths
+repo_root: "./Infra_owner_demo"
+remote_app_dir: "/opt/infra_owner_demo"
+
+# HTTP service configuration
+http_port: 80
+
+# Docker Compose configuration
+compose_file_local: "{{ repo_root }}/infra/docker-compose.yaml"
+dockerfile_local: "{{ repo_root }}/infra/Dockerfile"
+nginx_conf_local: "{{ repo_root }}/infra/nginx.conf"
+
+# Health check configuration
+health_check_retries: 10
+health_check_delay: 3
+health_check_timeout: 3
+health_check_url: "http://localhost:{{ http_port }}"
+
+# Docker Compose deployment settings
+compose_build: always
+compose_pull_policy: missing
+compose_recreate: smart
+
+# Run metadata
+run_id: "{{ ansible_date_time.iso8601_basic_short }}"
+deployment_timestamp: "{{ ansible_date_time.iso8601 }}"

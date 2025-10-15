@@ -1,0 +1,512 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Ansible Docker Compose Deployment MCP Tool",
+    "description": "MCP tool interface for deploying Docker Compose applications via Ansible to remote web servers",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/deploy": {
+      "post": {
+        "summary": "Deploy Docker Compose application",
+        "description": "Deploys application from local repository to remote servers in specified inventory group",
+        "operationId": "deployApplication",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeploymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deployment completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid deployment configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Deployment failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "summary": "Get deployment status",
+        "description": "Retrieves current status of deployed services",
+        "operationId": "getDeploymentStatus",
+        "parameters": [
+          {
+            "name": "inventory_group",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "web"
+            },
+            "description": "Inventory group to check status for"
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Specific deployment run ID to query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rollback": {
+      "post": {
+        "summary": "Rollback deployment",
+        "description": "Rolls back to previous deployment state",
+        "operationId": "rollbackDeployment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rollback completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No previous deployment state found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/validate": {
+      "post": {
+        "summary": "Validate deployment configuration",
+        "description": "Performs dry-run validation without making changes",
+        "operationId": "validateDeployment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeploymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validation successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DeploymentRequest": {
+        "type": "object",
+        "required": ["action"],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["deploy"],
+            "description": "Action to perform"
+          },
+          "inventory_group": {
+            "type": "string",
+            "default": "web",
+            "description": "Target inventory group for deployment"
+          },
+          "repo_root": {
+            "type": "string",
+            "default": "./Infra_owner_demo",
+            "description": "Local repository root path"
+          },
+          "remote_app_dir": {
+            "type": "string",
+            "default": "/opt/infra_owner_demo",
+            "description": "Remote deployment directory"
+          },
+          "http_port": {
+            "type": "integer",
+            "default": 80,
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "HTTP port for web application"
+          },
+          "compose_file_local": {
+            "type": "string",
+            "description": "Local path to docker-compose.yaml"
+          },
+          "dockerfile_local": {
+            "type": "string",
+            "description": "Local path to Dockerfile"
+          },
+          "nginx_conf_local": {
+            "type": "string",
+            "description": "Local path to nginx.conf"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "default": false,
+            "description": "Run in check mode without making changes"
+          }
+        }
+      },
+      "RollbackRequest": {
+        "type": "object",
+        "required": ["deployment_id"],
+        "properties": {
+          "deployment_id": {
+            "type": "string",
+            "description": "Deployment ID to rollback from"
+          },
+          "inventory_group": {
+            "type": "string",
+            "default": "web",
+            "description": "Target inventory group"
+          }
+        }
+      },
+      "DeploymentResponse": {
+        "type": "object",
+        "required": ["success", "run_id", "status"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether operation succeeded"
+          },
+          "run_id": {
+            "type": "string",
+            "description": "Unique execution identifier",
+            "example": "deploy-20251015-143022-a4f9"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "success", "failed", "rolled_back"],
+            "description": "Execution status"
+          },
+          "timestamp_start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Execution start time (ISO 8601)"
+          },
+          "timestamp_end": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Execution completion time (ISO 8601)"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "description": "Total execution time in seconds"
+          },
+          "tasks_summary": {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "integer",
+                "description": "Number of successful tasks"
+              },
+              "changed": {
+                "type": "integer",
+                "description": "Number of tasks that made changes"
+              },
+              "skipped": {
+                "type": "integer",
+                "description": "Number of skipped tasks"
+              },
+              "failed": {
+                "type": "integer",
+                "description": "Number of failed tasks"
+              },
+              "unreachable": {
+                "type": "integer",
+                "description": "Number of unreachable hosts"
+              }
+            }
+          },
+          "health_checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HealthCheck"
+            },
+            "description": "Results of health verification checks"
+          },
+          "target_hosts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of target hosts in deployment"
+          },
+          "log_file": {
+            "type": "string",
+            "description": "Path to detailed execution log"
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true,
+            "description": "Error details if deployment failed"
+          }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "required": ["inventory_group", "services"],
+        "properties": {
+          "inventory_group": {
+            "type": "string",
+            "description": "Inventory group queried"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServiceStatus"
+            },
+            "description": "Status of each Docker Compose service"
+          },
+          "overall_health": {
+            "type": "string",
+            "enum": ["healthy", "degraded", "unhealthy", "unknown"],
+            "description": "Aggregate health status"
+          },
+          "last_deployment": {
+            "type": "object",
+            "properties": {
+              "run_id": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ValidationResponse": {
+        "type": "object",
+        "required": ["valid", "checks"],
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "description": "Whether validation passed"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationCheck"
+            },
+            "description": "Individual validation check results"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Non-critical warnings"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Critical validation errors"
+          }
+        }
+      },
+      "ServiceStatus": {
+        "type": "object",
+        "required": ["service_name", "state"],
+        "properties": {
+          "service_name": {
+            "type": "string",
+            "description": "Service name from docker-compose.yml"
+          },
+          "container_id": {
+            "type": "string",
+            "description": "Docker container ID"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["running", "exited", "restarting", "paused", "created"],
+            "description": "Container runtime state"
+          },
+          "health_status": {
+            "type": "string",
+            "enum": ["healthy", "unhealthy", "starting", "none"],
+            "nullable": true,
+            "description": "Health check result (null if no healthcheck defined)"
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Published port mappings"
+          },
+          "image": {
+            "type": "string",
+            "description": "Docker image name and tag"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Container start time"
+          }
+        }
+      },
+      "HealthCheck": {
+        "type": "object",
+        "required": ["check_type", "passed"],
+        "properties": {
+          "check_type": {
+            "type": "string",
+            "enum": ["container_status", "http_endpoint", "compose_ps"],
+            "description": "Type of health check performed"
+          },
+          "passed": {
+            "type": "boolean",
+            "description": "Whether check succeeded"
+          },
+          "details": {
+            "type": "string",
+            "description": "Additional check result details"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When check was performed"
+          },
+          "retry_attempt": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Which retry attempt (1-based)"
+          }
+        }
+      },
+      "ValidationCheck": {
+        "type": "object",
+        "required": ["check_name", "passed"],
+        "properties": {
+          "check_name": {
+            "type": "string",
+            "description": "Name of validation check"
+          },
+          "passed": {
+            "type": "boolean",
+            "description": "Whether check passed"
+          },
+          "message": {
+            "type": "string",
+            "description": "Check result message"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning", "info"],
+            "description": "Issue severity level"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error code or type"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "details": {
+            "type": "object",
+            "description": "Additional error context",
+            "additionalProperties": true
+          },
+          "log_file": {
+            "type": "string",
+            "description": "Path to log file for debugging"
+          }
+        }
+      }
+    }
+  }
+}
