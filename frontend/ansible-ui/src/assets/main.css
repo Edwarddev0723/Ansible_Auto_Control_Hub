@@ -1,0 +1,134 @@
+/* 重置和基本樣式 */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  background: #fff;
+  color: #333;
+}
+
+#app {
+  height: 100vh;
+}
+
+a {
+  text-decoration: none;
+  color: #3498db;
+}
+
+/* 表單樣式 */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+.form-group label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.form-group textarea {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+/* 按鈕樣式 */
+button {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background: #2980b9;
+}
+
+button:disabled {
+  background: #a9cce3;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  background: #e74c3c;
+}
+.btn-danger:hover {
+  background: #c0392b;
+}
+.btn-secondary {
+  background: #95a5a6;
+}
+.btn-secondary:hover {
+  background: #7f8c8d;
+}
+
+/* 標題 */
+h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+/* 表格樣式 */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+.data-table th,
+.data-table td {
+  border: 1px solid #ddd;
+  padding: 0.75rem;
+  text-align: left;
+}
+.data-table th {
+  background-color: #f4f4f4;
+}
+.data-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* 錯誤訊息 */
+.error-message {
+  color: #e74c3c;
+  background: #fbeae5;
+  border: 1px solid #e74c3c;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+/* 頁面標頭 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
