@@ -22,6 +22,8 @@ docker pull mysql:8.0
 docker run --name ansible_mysql -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=ansible_api_db -p 3308:3306 -v c:\Users\user\Desktop\school_work\internet\ansible_api\mysql_data:/var/lib/mysql -d mysql:8.0 --default-authentication-plugin=mysql_native_password
 docker ps --filter name=ansible_mysql --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
+python create_user.py --email admin@example.com --password NewPass123 --role admin --force
+
 ```
 
 啟動開發伺服器：
