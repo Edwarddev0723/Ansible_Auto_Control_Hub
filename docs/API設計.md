@@ -62,7 +62,11 @@ Base
       "access_token": "ey...",
       "token_type": "bearer",
       "expires_in": 3600,
-      "user": { "id": "u1", "username": "alice", "role": "Admin" }
+      "user": { 
+        "id": "u1", 
+        "username": "alice", 
+        "role": "Admin" 
+      }
     }
   }
   ```
@@ -75,7 +79,15 @@ Frontend note: store token securely; subsequent API calls must include Authoriza
 - 授權：Bearer token
 - Request: Authorization header
   ```json
-  { "ok": true, "data": { "id":"u1","username":"alice","role":"Admin","email":"alice@example.com" } }
+  { 
+    "ok": true, 
+    "data": { 
+      "id":"u1",
+      "username":"alice",
+      "role":"Admin",
+      "email":"alice@example.com" 
+    } 
+  }
   ```
 
 1.3 GET /api/v1/users
@@ -83,7 +95,13 @@ Frontend note: store token securely; subsequent API calls must include Authoriza
 - 授權：Admin
 - Query params: page (int), page_size (int), search (string)
   ```json
-  { "ok": true, "data": { "items": [ {"id":"u1","username":"alice","role":"Admin"} ], "total": 50 } }
+  { 
+    "ok": true, 
+    "data": { 
+      "items": [ {"id":"u1","username":"alice","role":"Admin"} ], 
+      "total": 50 
+    } 
+  }
   ```
 
 ---
@@ -117,9 +135,9 @@ Frontend note: store token securely; subsequent API calls must include Authoriza
 - Request JSON body (validation):
   ```json
   {
-    "name": "web-01",           // string, required
+    "name": "web-01",          // string, required
     "hostname": "192.0.2.10",  // string (IP or DNS), required
-    "port": 22,                  // int, optional (default 22)
+    "port": 22,                // int, optional (default 22)
     "username": "ubuntu",      // string, required
     "ssh_key_id": "key_123",   // string|null, optional
     "groups": ["production"],  // array[string], optional
@@ -128,7 +146,10 @@ Frontend note: store token securely; subsequent API calls must include Authoriza
   ```
 - Response 201 example:
   ```json
-  { "ok": true, "data": { "id": "host_123", "name": "web-01" } }
+  { 
+    "ok": true, 
+    "data": { "id": "host_123", "name": "web-01" } 
+  }
   ```
 - Errors: 400/422 validation, 409 duplicate
 
@@ -136,7 +157,7 @@ Frontend note: store token securely; subsequent API calls must include Authoriza
 - 說明：取得單台主機詳細資料
 - 授權：Developer / Admin
 - Path param: host_id
-- Response 200 example: { "ok": true, "data": { "id":"host_123","name":"web-01","hostname":"192.0.2.10","vars":{...} } }
+
   Response 200 example:
   ```json
   { "ok": true, "data": { "id":"host_123","name":"web-01","hostname":"192.0.2.10","vars":{...} } }
