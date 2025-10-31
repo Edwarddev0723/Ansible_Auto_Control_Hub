@@ -123,8 +123,14 @@ Frontend note: store token securely; subsequent API calls must include Authoriza
   {
     "ok": true,
     "data": {
-      "items": [ { "id":"host_1","name":"web-01","hostname":"192.0.2.10","groups":["web"] } ],
-      "total": 123
+      "items": [
+        { "id":"host_1","name":"web-01","hostname":"192.0.2.10","port":22,"username":"ubuntu","groups":["web","production"] },
+        { "id":"host_2","name":"web-02","hostname":"192.0.2.11","port":22,"username":"ubuntu","groups":["web","staging"] },
+        { "id":"db_1","name":"db-01","hostname":"192.0.2.20","port":2222,"username":"postgres","groups":["db","production"] }
+      ],
+      "total": 123,
+      "page": 1,
+      "page_size": 20
     }
   }
   ```
@@ -160,7 +166,19 @@ Frontend note: store token securely; subsequent API calls must include Authoriza
 
   Response 200 example:
   ```json
-  { "ok": true, "data": { "id":"host_123","name":"web-01","hostname":"192.0.2.10","vars":{...} } }
+  { 
+    "ok": true, 
+    "data": { 
+      "id":"host_123",
+      "name":"web-01",
+      "hostname":"192.0.2.10",
+      "port":22,
+      "username":"ubuntu",
+      "ssh_key_id":"key_123",
+      "groups":["web","production"],
+      "vars":{ "ansible_python_interpreter":"/usr/bin/python3", "env":"prod" }
+    } 
+  }
   ```
 
 2.4 PUT /api/v1/inventory/hosts/{host_id}
@@ -179,7 +197,14 @@ Frontend note: store token securely; subsequent API calls must include Authoriza
 - 授權：Developer / Admin
   Response 200 example:
   ```json
-  { "ok": true, "data": { "reachable": true, "elapsed_ms": 120, "detail": "pong" } }
+  { 
+    "ok": true, 
+    "data": { 
+      "reachable": true, 
+      "elapsed_ms": 120, 
+      "detail": "pong" 
+    } 
+  }
   ```
 
 2.7 Groups (inventory groups)
@@ -206,8 +231,13 @@ GET /api/v1/inventory/groups
   {
     "ok": true,
     "data": {
-      "items": [ { "id":"g1", "name":"production", "members_count": 8, "description":"Prod web servers" } ],
-      "total": 5
+      "items": [
+        { "id":"g1", "name":"production", "members_count": 8, "description":"Prod web servers" },
+        { "id":"g2", "name":"staging", "members_count": 5, "description":"Staging env" }
+      ],
+      "total": 2,
+      "page": 1,
+      "page_size": 20
     }
   }
   ```
@@ -218,15 +248,18 @@ POST /api/v1/inventory/groups
   Request JSON body (validation):
   ```json
   {
-    "name": "production",            // string, required, unique
+    "name": "production",                    // string, required, unique
     "description": "Production web servers",
-    "members": ["host_1","host_2"], // optional
-    "vars": { "ansible_user": "ubuntu" } // optional
+    "members": ["host_1","host_2"],          // optional
+    "vars": { "ansible_user": "ubuntu" }     // optional
   }
   ```
   - Response 201 example:
   ```json
-  { "ok": true, "data": { "id": "g1", "name": "production" } }
+  { 
+    "ok": true, 
+    "data": { "id": "g1", "name": "production" } 
+  }
   ```
 - Errors: 400/422 (validation), 409 (name already exists)
 
@@ -242,8 +275,12 @@ GET /api/v1/inventory/groups/{group_id}
       "id": "g1",
       "name": "production",
       "description": "Prod web servers",
-      "members": [ {"id":"host_1","name":"web-01","hostname":"192.0.2.10"} ],
-      "vars": {"ansible_user":"ubuntu"},
+      "members": [
+        {"id":"host_1","name":"web-01","hostname":"192.0.2.10"},
+        {"id":"host_2","name":"web-02","hostname":"192.0.2.11"},
+        {"id":"db_1","name":"db-01","hostname":"192.0.2.20"}
+      ],
+      "vars": {"ansible_user":"ubuntu","env":"prod"},
       "created_by": "u1",
       "created_at": "2025-10-30T12:00:00Z"
     }
@@ -276,7 +313,14 @@ PATCH /api/v1/inventory/groups/{group_id}/members
   ```
   - Response 200 example:
   ```json
-  { "ok": true, "data": { "id":"g1", "members_added": ["host_4"], "members_removed": ["host_2"] } }
+  { 
+    "ok": true, 
+    "data": { 
+      "id":"g1", 
+      "members_added": ["host_4"], 
+      "members_removed": ["host_2"] 
+    } 
+  }
   ```
 
 DELETE /api/v1/inventory/groups/{group_id}
@@ -299,15 +343,23 @@ DELETE /api/v1/inventory/groups/{group_id}
 
 ---
 
-## 3. Playbooks（/api/v1/playbooks） — structure-only, no YAML upload
+## 3. Playbooks（/api/v1/playbooks）
 
-說明：Playbook 以結構化 JSON 儲存（content_struct），供前端以表單編輯與產生部署變數表單。**不提供檔案上傳 / 內嵌 YAML 編輯器**。如需顯示原始 YAML，後端可提供 raw_yaml 字段作為只讀下載。
+說明：Playbook 以結構化 JSON 儲存（content_struct），供前端以表單編輯與產生部署變數表單。如需顯示原始 YAML，後端可提供 raw_yaml 字段作為只讀下載。
 
-content_struct 範例：
+content_struct 範例（含多個變數與任務）：
 ```json
 {
-  "vars": [ { "name": "git_branch", "type": "string", "default": "main", "required": true } ],
-  "tasks": [ { "id": "t1", "name": "Checkout", "module": "git", "params": { "repo": "git@...", "dest": "/var/www" } } ]
+  "vars": [
+    { "name": "git_branch", "type": "string", "default": "main", "required": true },
+    { "name": "deploy_path", "type": "string", "default": "/var/www/app", "required": true },
+    { "name": "service_name", "type": "string", "default": "nginx", "required": false }
+  ],
+  "tasks": [
+    { "id": "t1", "name": "Checkout", "module": "git", "params": { "repo": "git@github.com:org/repo.git", "version": "{{ git_branch }}", "dest": "{{ deploy_path }}" } },
+    { "id": "t2", "name": "Install deps", "module": "shell", "params": { "cmd": "pip install -r {{ deploy_path }}/requirements.txt" } },
+    { "id": "t3", "name": "Restart service", "module": "service", "params": { "name": "{{ service_name }}", "state": "restarted" } }
+  ]
 }
 ```
 
@@ -334,7 +386,18 @@ content_struct 範例：
 - Query: page, page_size, search
   Response 200 example:
   ```json
-  { "ok": true, "data": { "items": [ {"id":"pb_1","name":"deploy-web"} ], "total": 10 } }
+  { 
+    "ok": true, 
+    "data": { 
+      "items": [
+        {"id":"pb_1","name":"deploy-web","description":"Deploy web app"},
+        {"id":"pb_2","name":"db-maintenance","description":"DB tasks"}
+      ], 
+      "total": 2,
+      "page": 1,
+      "page_size": 20
+    } 
+  }
   ```
 
 3.3 GET /api/v1/playbooks/{playbook_id}
@@ -348,7 +411,16 @@ content_struct 範例：
       "id": "pb_1",
       "name": "deploy-web",
       "description": "...",
-      "content_struct": { ... },
+      "content_struct": {
+        "vars": [
+          { "name": "git_branch", "type": "string", "default": "main", "required": true },
+          { "name": "deploy_path", "type": "string", "default": "/var/www/app", "required": true }
+        ],
+        "tasks": [
+          { "id": "t1", "name": "Checkout", "module": "git", "params": { "repo": "git@github.com:org/repo.git", "version": "{{ git_branch }}", "dest": "{{ deploy_path }}" } },
+          { "id": "t2", "name": "Restart service", "module": "service", "params": { "name": "nginx", "state": "restarted" } }
+        ]
+      },
       "raw_yaml": "---"   // optional, read-only
     }
   }
@@ -371,11 +443,10 @@ content_struct 範例：
 
 ## 4. Deployment（/api/v1/deployment） — 部署程式碼為主
 
-目標：把程式碼部署到選定的 host(s)。部署可以使用已註冊的 Playbook (content_struct) 或以 inline content_struct 在建立 job 時直接傳入（皆為 JSON）。**不使用檔案上傳**。
+目標：把程式碼部署到選定的 host(s)。部署應使用已註冊並儲存在系統中的 Playbook (content_struct)。
 
 DeploymentJob body fields (create)：
-- playbook_id: string (選用，若使用已儲存 Playbook)
-- inline_playbook_struct: object (選用，若希望本次使用臨時結構化 playbook)
+- playbook_id: string (required，使用已儲存的 Playbook id)
 - target_host_ids: array[string] (required)
 - extra_vars: object (optional) — 例如:
   ```json
@@ -384,7 +455,7 @@ DeploymentJob body fields (create)：
 - run_mode: string (optional) — e.g. "parallel" | "serial"
 
 Validation rules (server side):
-- 必須提供 playbook_id 或 inline_playbook_struct
+- playbook_id 必填，且必須對應至已存在的 Playbook
 - target_host_ids 至少一個
 - extra_vars keys 應符合 playbook.vars 定義（若可驗證）
 
@@ -418,7 +489,18 @@ Notes on deployment behavior (for backend implementer):
 - Query: page, page_size, status, initiated_by, from, to
   Response 200 example:
   ```json
-  { "ok": true, "data": { "items": [ { "job_id":"job_456","status":"SUCCESS","started_at":"..." } ], "total": 50 } }
+  {
+    "ok": true,
+    "data": {
+      "items": [
+        { "job_id":"job_456","status":"SUCCESS","playbook_id":"pb_1","initiated_by":"u1","started_at":"2025-10-31T01:00:00Z","finished_at":"2025-10-31T01:03:20Z","targets_count":2 },
+        { "job_id":"job_789","status":"FAILED","playbook_id":"pb_2","initiated_by":"u2","started_at":"2025-10-31T02:10:00Z","finished_at":"2025-10-31T02:11:05Z","targets_count":3 }
+      ],
+      "total": 50,
+      "page": 1,
+      "page_size": 20
+    }
+  }
   ```
 
 4.3 GET /api/v1/deployment/jobs/{job_id}
@@ -433,7 +515,13 @@ Notes on deployment behavior (for backend implementer):
       "status": "SUCCESS",
       "started_at": "...",
       "finished_at": "...",
-      "targets": [ { "host_id":"host_1","status":"SUCCESS","changed": true } ],
+      "playbook_id": "pb_1",
+      "extra_vars": { "git_branch": "main", "git_repo": "git@github.com:org/repo.git" },
+      "run_mode": "parallel",
+      "targets": [
+        { "host_id":"host_1","name":"web-01","status":"SUCCESS","changed": true, "elapsed_ms": 8500 },
+        { "host_id":"host_2","name":"web-02","status":"SUCCESS","changed": false, "elapsed_ms": 8200 }
+      ],
       "logs_url": "/api/v1/audit/deployments/job_456/logs"
     }
   }
@@ -449,3 +537,188 @@ Notes on deployment behavior (for backend implementer):
 
 4.5 POST /api/v1/deployment/jobs/{job_id}/cancel
 - 說明：嘗試取消正在執行的 job（視 backend runner 支援而定）
+
+  - Response 202 example:
+  ```json
+  { "ok": true, "data": { "job_id": "job_456", "status": "CANCEL_REQUESTED" } }
+  ```
+
+---
+
+## 5. WebSocket（realtime logs）
+
+- 路徑：GET /api/v1/ws/jobs/{job_id}
+- 說明：串流指定 job 的即時日誌與狀態更新。
+- 授權：Bearer token（可透過 Authorization header 或查詢參數 token=...）
+- 連線成功後，伺服器推送 JSON 訊息。
+
+訊息格式：
+- event: "log" | "status" | "end"
+- ts: ISO8601
+- data: 依事件不同
+
+訊息範例：
+```json
+{ "event": "status", "ts": "2025-10-31T01:00:00Z", "data": { "status": "RUNNING" } }
+{ "event": "log", "ts": "2025-10-31T01:00:05Z", "data": { "host": "web-01", "line": "TASK [Checkout] *************************" } }
+{ "event": "log", "ts": "2025-10-31T01:00:08Z", "data": { "host": "web-02", "line": "changed: [web-02]" } }
+{ "event": "status", "ts": "2025-10-31T01:03:20Z", "data": { "status": "SUCCESS" } }
+{ "event": "end", "ts": "2025-10-31T01:03:20Z" }
+```
+
+備註：client 應在斷線時自動重連，並以最後已處理的 offset（若有）請求補送。
+
+---
+
+## 6. Audit / History
+
+6.1 GET /api/v1/audit/deployments
+- 說明：查詢部署紀錄（支援分頁與篩選）
+- 授權：Developer / Admin
+- Query：page, page_size, status, initiated_by, from, to, playbook_id
+- Response 200 example：
+```json
+{
+  "ok": true,
+  "data": {
+    "items": [
+      { "job_id": "job_456", "status": "SUCCESS", "playbook_id": "pb_1", "initiated_by": "u1", "started_at": "2025-10-31T01:00:00Z", "finished_at": "2025-10-31T01:03:20Z" },
+      { "job_id": "job_789", "status": "FAILED", "playbook_id": "pb_2", "initiated_by": "u2", "started_at": "2025-10-31T02:10:00Z", "finished_at": "2025-10-31T02:11:05Z" }
+    ],
+    "total": 2,
+    "page": 1,
+    "page_size": 20
+  }
+}
+```
+
+6.2 GET /api/v1/audit/deployments/{job_id}
+- 說明：取得單一部署紀錄詳細
+- 授權：Developer / Admin
+- Response 200 example：
+```json
+{
+  "ok": true,
+  "data": {
+    "job_id": "job_456",
+    "status": "SUCCESS",
+    "playbook_id": "pb_1",
+    "initiated_by": "u1",
+    "requested_at": "2025-10-31T00:59:50Z",
+    "started_at": "2025-10-31T01:00:00Z",
+    "finished_at": "2025-10-31T01:03:20Z",
+    "targets": [
+      { "host_id": "host_1", "name": "web-01", "status": "SUCCESS", "changed": true, "elapsed_ms": 8500 },
+      { "host_id": "host_2", "name": "web-02", "status": "SUCCESS", "changed": false, "elapsed_ms": 8200 }
+    ],
+    "summary": { "ok": 2, "changed": 1, "failed": 0, "skipped": 0 }
+  }
+}
+```
+
+6.3 GET /api/v1/audit/deployments/{job_id}/logs
+- 說明：取得部署完整日誌（純文字或以行陣列回傳）
+- 授權：Developer / Admin
+- Query：format=text|json (預設 text)
+- Response 200 example（text）：
+```
+PLAY [all] ********************************************************************
+TASK [Checkout] ***************************************************************
+changed: [web-01]
+ok: [web-02]
+
+PLAY RECAP ********************************************************************
+web-01 : ok=5 changed=1 failed=0 skipped=0
+web-02 : ok=5 changed=0 failed=0 skipped=0
+```
+
+Response 200 example（json）：
+```json
+{
+  "ok": true,
+  "data": {
+    "lines": ["PLAY [all] ***********", "TASK [Checkout] ***********", "changed: [web-01]", "ok: [web-02]"]
+  }
+}
+```
+
+---
+
+## 7. SSH Keys
+
+- 路徑前綴：/api/v1/ssh-keys
+- 物件欄位：
+  - id: string
+  - name: string (required, unique)
+  - fingerprint: string (read-only)
+  - public_key: string (OpenSSH 格式)
+  - created_by: string
+  - created_at: ISO8601
+
+7.1 POST /api/v1/ssh-keys
+- 說明：新增一把 SSH 公鑰（可選擇同時上傳私鑰，後端需妥善加密保存）
+- 授權：Admin
+- Request JSON:
+```json
+{ "name": "build-bot", "public_key": "ssh-rsa AAAAB3Nza... user@host" }
+```
+- Response 201 example:
+```json
+{ "ok": true, "data": { "id": "key_123", "name": "build-bot", "fingerprint": "SHA256:abcd..." } }
+```
+
+7.2 GET /api/v1/ssh-keys
+- 說明：列出 SSH keys
+- 授權：Developer / Admin
+- Response 200 example（多筆）：
+```json
+{
+  "ok": true,
+  "data": {
+    "items": [
+      { "id": "key_123", "name": "build-bot", "fingerprint": "SHA256:abcd..." },
+      { "id": "key_456", "name": "admin-key", "fingerprint": "SHA256:efgh..." }
+    ],
+    "total": 2,
+    "page": 1,
+    "page_size": 20
+  }
+}
+```
+
+7.3 DELETE /api/v1/ssh-keys/{key_id}
+- 說明：刪除 SSH key（若仍被 host 參考，回 409）
+- 授權：Admin
+- Response：204 No Content（成功）
+
+---
+
+## 8. Errors & Validation
+
+- 統一錯誤格式：
+```json
+{ "ok": false, "error": { "code": "ERR_CODE", "message": "描述", "details": {"field": "error detail"} } }
+```
+
+- 常見錯誤碼：
+  - AUTH_INVALID_CREDENTIALS (401)
+  - AUTH_FORBIDDEN (403)
+  - NOT_FOUND (404)
+  - VALIDATION_ERROR (422)
+  - CONFLICT (409)
+  - INTERNAL_ERROR (500)
+
+- 422 範例（欄位驗證錯誤）：
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed",
+    "details": {
+      "playbook_id": "must be a valid id",
+      "target_host_ids": "must contain at least 1 host"
+    }
+  }
+}
+```
