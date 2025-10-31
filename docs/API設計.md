@@ -8,17 +8,25 @@ Base
 - 授權：Authorization: Bearer <access_token>
 - 時間格式：ISO 8601 (UTC)
 - 回應統一格式：
-  - 成功：{ "ok": true, "data": ... }
-  - 失敗：{ "ok": false, "error": { "code": "ERR_CODE", "message": "描述", "details": {...} } }
-
+  
   成功範例：
   ```json
-  { "ok": true, "data": ... }
+  { 
+    "ok": true, 
+    "data": ... 
+  }
   ```
 
   失敗範例：
   ```json
-  { "ok": false, "error": { "code": "ERR_CODE", "message": "描述", "details": {...} } }
+  { 
+    "ok": false, 
+    "error": { 
+      "code": "ERR_CODE", 
+      "message": "描述", 
+      "details": {...} 
+    } 
+  }
   ```
 
 備註：為了前端和後端可以獨立開發，所有 endpoint 都標示：方法、路徑、授權、接收的參數 (query/path/body/header)、以及範例回應。
@@ -26,14 +34,14 @@ Base
 ---
 
 ## 目錄
-- 1. Auth / Users
-- 2. Inventory (hosts, groups)
-- 3. Playbooks (structure-only, no YAML upload)
-- 4. Deployment (deploy code to hosts)
-- 5. WebSocket: realtime logs
-- 6. Audit / History
-- 7. SSH Keys
-- 8. Errors & Validation
+1. Auth / Users
+2. Inventory (hosts, groups)
+3. Playbooks (structure-only, no YAML upload)
+4. Deployment (deploy code to hosts)
+5. WebSocket: realtime logs
+6. Audit / History
+7. SSH Keys
+8. Errors & Validation
 
 ---
 
