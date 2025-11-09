@@ -20,6 +20,11 @@ const router = createRouter({
       component: () => import('../views/PlaybookCreateView.vue'),
     },
     {
+      path: '/playbook/edit/:id',
+      name: 'playbook-edit',
+      component: () => import('../views/PlaybookEditView.vue'),
+    },
+    {
       path: '/ai-deploy',
       name: 'ai-deploy',
       component: () => import('../views/AITalkView.vue'),

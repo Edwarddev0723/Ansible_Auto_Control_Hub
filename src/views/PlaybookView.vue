@@ -233,7 +233,7 @@ const createPlaybook = () => {
 }
 
 const editItem = (item: PlaybookItem) => {
-  alert(`編輯：${item.name}`)
+  router.push(`/playbook/edit/${item.id}`)
 }
 
 const deleteItem = (item: PlaybookItem) => {
