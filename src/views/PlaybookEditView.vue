@@ -2,7 +2,7 @@
   <AppLayout>
     <div class="min-h-screen bg-[#FAFBFD] p-6">
       <!-- Header -->
-      <h1 class="mb-6 text-2xl font-semibold text-black">編輯 Playbook</h1>
+      <h1 class="mb-6 text-2xl font-semibold text-[#333B69]">編輯 Playbook</h1>
 
       <!-- Card -->
       <div class="rounded-2xl bg-white p-6 shadow-sm">
@@ -15,13 +15,13 @@
               @click="activeTab = tab.key"
               :class="[
                 'relative pb-3 text-sm font-semibold',
-                activeTab === tab.key ? 'text-teal-500' : 'text-gray-500',
+                activeTab === tab.key ? 'text-[#4379EE]' : 'text-gray-500',
               ]"
             >
               {{ tab.label }}
               <span
                 v-if="activeTab === tab.key"
-                class="absolute left-0 bottom-0 h-[2px] w-full bg-teal-500"
+                class="absolute left-0 bottom-0 h-[2px] w-full bg-[#4379EE]"
               ></span>
             </button>
           </nav>
@@ -51,9 +51,23 @@
                 v-model="form.typeOther"
                 type="text"
                 class="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-black focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
-                placeholder="Others"
+                placeholder="Other"
               />
             </div>
+          </div>
+          <div class="mt-8 flex justify-end gap-4">
+            <button
+              @click="router.push('/playbook')"
+              class="rounded-lg bg-gray-400 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-500"
+            >
+              取消
+            </button>
+            <button
+              @click="nextTab"
+              class="rounded-lg bg-[#4379EE] px-6 py-2 text-sm font-semibold text-white hover:bg-[#3868dd]"
+            >
+              下一步
+            </button>
           </div>
         </div>
 
@@ -90,7 +104,7 @@
             </select>
             <button
               @click="addMainField"
-              class="mt-4 rounded-lg bg-teal-500 px-10 py-3 text-sm font-medium text-white transition-colors hover:bg-teal-600"
+              class="mt-4 rounded-lg bg-[#4379EE] px-10 py-3 text-sm font-medium text-white transition-colors hover:bg-[#3868dd]"
             >
               新增 Main 欄位
             </button>
@@ -101,6 +115,20 @@
               :placeholder="field.placeholder"
               class="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-black focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
             />
+          </div>
+          <div class="mt-8 flex justify-end gap-4">
+            <button
+              @click="activeTab = 'info'"
+              class="rounded-lg bg-gray-400 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-500"
+            >
+              上一步
+            </button>
+            <button
+              @click="nextTab"
+              class="rounded-lg bg-[#4379EE] px-6 py-2 text-sm font-semibold text-white hover:bg-[#3868dd]"
+            >
+              下一步
+            </button>
           </div>
         </div>
 
@@ -119,7 +147,7 @@
                   :aria-pressed="task.enabled"
                   :class="[
                     'h-6 w-10 rounded-full transition-colors relative focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#4379EE]',
-                    task.enabled ? 'bg-teal-500' : 'bg-gray-200',
+                    task.enabled ? 'bg-[#4379EE]' : 'bg-gray-200',
                   ]"
                 >
                   <span
@@ -139,36 +167,26 @@
           </div>
           <button
             @click="addTask"
-            class="mt-6 rounded-lg bg-teal-500 px-10 py-3 text-sm font-medium text-white transition-colors hover:bg-teal-600"
+            class="mt-6 rounded-lg bg-[#4379EE] px-10 py-3 text-sm font-medium text-white transition-colors hover:bg-[#3868dd]"
           >
             新增 Task
           </button>
+          <div class="mt-8 flex justify-end gap-4">
+            <button
+              @click="activeTab = 'main'"
+              class="rounded-lg bg-gray-400 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-500"
+            >
+              上一步
+            </button>
+            <button
+              @click="saveEdit"
+              class="rounded-lg bg-[#4379EE] px-6 py-2 text-sm font-semibold text-white hover:bg-[#3868dd]"
+            >
+              儲存並返回
+            </button>
+          </div>
         </div>
 
-        <!-- Footer -->
-        <div class="mt-8 flex justify-end gap-4">
-          <button
-            v-if="activeTab !== 'info'"
-            @click="prevTab"
-            class="rounded-lg border border-black bg-[#FAFBFD] px-6 py-2 text-sm font-semibold text-black hover:bg-gray-100"
-          >
-            上一步
-          </button>
-          <button
-            v-if="activeTab !== 'task'"
-            @click="nextTab"
-            class="rounded-lg bg-teal-500 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-600"
-          >
-            下一步
-          </button>
-          <button
-            v-if="activeTab === 'task'"
-            @click="saveEdit"
-            class="rounded-lg bg-teal-500 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-600"
-          >
-            儲存並返回
-          </button>
-        </div>
       </div>
     </div>
   </AppLayout>
@@ -194,13 +212,13 @@ const form = ref({
   hosts: '',
   gatherFacts: false,
   type: 'Machine',
-  typeOther: 'Others',
+  typeOther: 'Other',
   main: '',
   task: '',
 })
 
 const mainList = ref([
-  { id: 1, type: 'Machine', typeOther: 'Others', content: '' },
+  { id: 1, type: 'Machine', typeOther: 'Other', content: '' },
 ])
 const taskList = ref([
   { id: 1, enabled: true, content: `name: test1\ncommunity:\n  name: demo\nstate: absent` },
@@ -210,7 +228,7 @@ const taskList = ref([
 ])
 
 const addMain = () => {
-  mainList.value.push({ id: mainList.value.length + 1, type: 'Machine', typeOther: 'Others', content: '' })
+  mainList.value.push({ id: mainList.value.length + 1, type: 'Machine', typeOther: 'Other', content: '' })
 }
 const addTask = () => {
   const nextId = taskList.value.length + 1;

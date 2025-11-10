@@ -15,13 +15,13 @@
               @click="activeTab = tab.key"
               :class="[
                 'relative pb-3 text-sm font-semibold',
-                activeTab === tab.key ? 'text-teal-500' : 'text-gray-500',
+                activeTab === tab.key ? 'text-[#4379EE]' : 'text-gray-500',
               ]"
             >
               {{ tab.label }}
               <span
                 v-if="activeTab === tab.key"
-                class="absolute left-0 bottom-0 h-[2px] w-full bg-teal-500"
+                class="absolute left-0 bottom-0 h-[2px] w-full bg-[#4379EE]"
               ></span>
             </button>
           </nav>
@@ -65,7 +65,7 @@
             </select>
             <button
               @click="addMainField"
-              class="mt-4 rounded-lg bg-teal-500 px-10 py-3 text-sm font-medium text-white transition-colors hover:bg-teal-600"
+              class="mt-4 rounded-lg bg-[#4379EE] px-10 py-3 text-sm font-medium text-white transition-colors hover:bg-[#3868dd]"
             >
               新增 Main 欄位
             </button>
@@ -88,7 +88,7 @@
             </button>
             <button
               @click="continueNext"
-              class="rounded-lg bg-teal-500 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-600"
+              class="rounded-lg bg-[#4379EE] px-6 py-2 text-sm font-semibold text-white hover:bg-[#3868dd]"
             >
               下一步
             </button>
@@ -111,7 +111,7 @@
                   :aria-pressed="task.enabled"
                   :class="[
                     'h-6 w-10 rounded-full transition-colors relative focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#4379EE]',
-                    task.enabled ? 'bg-teal-500' : 'bg-gray-200',
+                    task.enabled ? 'bg-[#4379EE]' : 'bg-gray-200',
                   ]"
                 >
                   <span
@@ -132,23 +132,23 @@
           </div>
           <button
             @click="addTask"
-            class="mt-6 rounded-lg bg-teal-500 px-10 py-3 text-sm font-medium text-white transition-colors hover:bg-teal-600"
+            class="mt-6 rounded-lg bg-[#4379EE] px-10 py-3 text-sm font-medium text-white transition-colors hover:bg-[#3868dd]"
           >
             新增 Task
           </button>
 
           <div class="mt-10 flex justify-end gap-4">
             <button
-              @click="activeTab.value = 'main'"
-              class="rounded-lg border border-black bg-[#FAFBFD] px-6 py-2 text-sm font-semibold text-black hover:bg-gray-100"
+              @click="activeTab = 'main'"
+              class="rounded-lg bg-gray-400 px-10 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-500"
             >
               上一步
             </button>
             <button
               @click="continueNext"
-              class="rounded-lg bg-teal-500 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-600"
+              class="rounded-lg bg-[#4379EE] px-6 py-2 text-sm font-semibold text-white hover:bg-[#3868dd]"
             >
-              儲存
+              儲存並返回
             </button>
           </div>
         </div>
