@@ -29,11 +29,11 @@
         <router-link
           to="/"
           class="nav-item"
-          :class="{ active: $route.name === 'inventories' }"
+          :class="{ active: $route.path === '/' || $route.path.startsWith('/inventory') }"
         >
           <svg
             class="w-[25px] h-[25px]"
-            :class="$route.name === 'inventories' ? 'fill-[#1814F3]' : 'fill-[#B1B1B1]'"
+            :class="($route.path === '/' || $route.path.startsWith('/inventory')) ? 'fill-[#1814F3]' : 'fill-[#B1B1B1]'"
             viewBox="0 0 25 25"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -48,10 +48,11 @@
         <router-link
           to="/playbook"
           class="nav-item"
-          :class="{ active: $route.name === 'playbook' }"
+          :class="{ active: $route.path.startsWith('/playbook') }"
         >
           <svg
-            class="w-[25px] h-[25px] fill-[#B1B1B1]"
+            class="w-[25px] h-[25px]"
+            :class="$route.path.startsWith('/playbook') ? 'fill-[#1814F3]' : 'fill-[#B1B1B1]'"
             viewBox="0 0 25 25"
             xmlns="http://www.w3.org/2000/svg"
           >
@@ -87,10 +88,11 @@
         <router-link
           to="/ai-deploy"
           class="nav-item"
-          :class="{ active: $route.name === 'ai-deploy' }"
+          :class="{ active: $route.path.startsWith('/ai-deploy') }"
         >
           <svg
-            class="w-[25px] h-[25px] fill-[#B1B1B1]"
+            class="w-[25px] h-[25px]"
+            :class="$route.path.startsWith('/ai-deploy') ? 'fill-[#1814F3]' : 'fill-[#B1B1B1]'"
             viewBox="0 0 25 25"
             xmlns="http://www.w3.org/2000/svg"
           >
@@ -108,7 +110,7 @@
               </clipPath>
             </defs>
           </svg>
-          <span>AI 對話部屬</span>
+          <span>AI 對話部署</span>
         </router-link>
       </nav>
     </aside>
