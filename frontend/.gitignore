@@ -1,0 +1,150 @@
+# ================================
+# Frontend (Vue 3 + TypeScript + Vite)
+# ================================
+
+# ============== Logs ==============
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ============== Dependencies ==============
+node_modules
+.pnp
+.pnp.js
+
+# ============== Build Output ==============
+dist
+dist-ssr
+*.local
+.cache
+
+# ============== Testing ==============
+coverage
+*.lcov
+.nyc_output
+
+# Cypress
+/cypress/videos/
+/cypress/screenshots/
+cypress/downloads/
+
+# ============== TypeScript ==============
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# ============== Environment Variables ==============
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# ============== IDE ==============
+# VSCode
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.code-workspace
+
+# WebStorm / IntelliJ
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============== OS ==============
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============== Vite ==============
+# Vite cache
+.vite
+.vite-cache
+
+# ============== Package Managers ==============
+# npm
+package-lock.json
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# pnpm
+pnpm-lock.yaml
+.pnpm-store/
+
+# ============== Temporary Files ==============
+*.tmp
+*.temp
+*.bak
+*.swp
+*~.nib
+
+# ============== Storybook ==============
+storybook-static
+.storybook-out
+
+# ============== PWA ==============
+# Service worker
+sw.js
+workbox-*.js
+
+# ============== Misc ==============
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+*.local
+
+# Static files that should not be committed
+public/uploads/
+public/assets/temp/
+
+# Auto-generated files
+*.generated.*

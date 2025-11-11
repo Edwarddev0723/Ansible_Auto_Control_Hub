@@ -31,6 +31,7 @@
             </svg>
             <input
               v-model="searchQuery"
+              @keyup.enter="handleSearch"
               type="text"
               placeholder="Search"
               class="h-[39px] w-full rounded-[20px] border border-[#D5D5D5] bg-[#F5F6FA] pl-14 pr-4 text-sm font-normal text-[#202224] opacity-60 placeholder:text-[#202224] placeholder:opacity-60 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#4379EE]"
@@ -185,9 +186,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
+import { getPlaybooks, deletePlaybook as apiDeletePlaybook, executePlaybooks } from '@/api/playbook'
 
 interface PlaybookItem {
   id: number
@@ -201,31 +203,84 @@ const router = useRouter()
 const searchQuery = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
+const items = ref<PlaybookItem[]>([])
+const loading = ref(false)
+const totalItems = ref(0)
 
-const items = ref<PlaybookItem[]>([
-  { id: 1, name: 'Ansible GUI', type: 'Machine', status: 'Success', selected: false },
-  { id: 2, name: 'Ansible introduction', type: 'Machine', status: 'Fail', selected: false },
-  { id: 3, name: 'Ansible introduction', type: 'Machine', status: 'Not start', selected: false },
-])
+// 載入 Playbooks
+const loadPlaybooks = async () => {
+  try {
+    loading.value = true
+    const response = await getPlaybooks({
+      search: searchQuery.value || undefined,
+      page: currentPage.value,
+      per_page: itemsPerPage.value,
+    })
+    
+    if (response.success) {
+      items.value = response.data.items.map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        status: item.status,
+        selected: false,
+      }))
+      totalItems.value = response.data.pagination.total
+    }
+  } catch (error) {
+    console.error('載入 Playbooks 失敗:', error)
+    alert('載入資料失敗，請確認後端服務是否正常運行')
+  } finally {
+    loading.value = false
+  }
+}
 
-const filteredItems = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return items.value
-  return items.value.filter((i) => i.name.toLowerCase().includes(q))
+// 組件掛載時載入資料
+onMounted(() => {
+  loadPlaybooks()
 })
 
-const totalPages = computed(() => Math.ceil(filteredItems.value.length / itemsPerPage.value) || 1)
+const filteredItems = computed(() => {
+  return items.value
+})
+
+const totalPages = computed(() => Math.ceil(totalItems.value / itemsPerPage.value) || 1)
 
 const previousPage = () => {
-  if (currentPage.value > 1) currentPage.value--
-}
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) currentPage.value++
+  if (currentPage.value > 1) {
+    currentPage.value--
+    loadPlaybooks()
+  }
 }
 
-const runSelected = () => {
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+    loadPlaybooks()
+  }
+}
+
+const runSelected = async () => {
   const selected = items.value.filter((i) => i.selected)
-  alert(`執行 ${selected.length} 個 Playbook`)
+  if (selected.length === 0) {
+    alert('請至少選擇一個 Playbook')
+    return
+  }
+  
+  try {
+    const response = await executePlaybooks({
+      playbook_ids: selected.map(s => s.id),
+    })
+    
+    if (response.success) {
+      alert(`${response.message}\nJob ID: ${response.data.job_id}`)
+      // 重新載入列表以更新狀態
+      loadPlaybooks()
+    }
+  } catch (error) {
+    console.error('執行失敗:', error)
+    alert('執行失敗，請稍後再試')
+  }
 }
 
 const createPlaybook = () => {
@@ -236,10 +291,24 @@ const editItem = (item: PlaybookItem) => {
   router.push(`/playbook/edit/${item.id}`)
 }
 
-const deleteItem = (item: PlaybookItem) => {
+const deleteItem = async (item: PlaybookItem) => {
   if (confirm(`確定刪除 ${item.name} ?`)) {
-    const idx = items.value.findIndex((x) => x.id === item.id)
-    if (idx !== -1) items.value.splice(idx, 1)
+    try {
+      const response = await apiDeletePlaybook(item.id)
+      if (response.success) {
+        alert(response.message || 'Playbook 刪除成功')
+        loadPlaybooks()
+      }
+    } catch (error) {
+      console.error('刪除失敗:', error)
+      alert('刪除失敗，請稍後再試')
+    }
   }
+}
+
+// 監聽搜尋變化
+const handleSearch = () => {
+  currentPage.value = 1
+  loadPlaybooks()
 }
 </script>

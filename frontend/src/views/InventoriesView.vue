@@ -35,6 +35,7 @@
             </svg>
             <input
               v-model="searchQuery"
+              @keyup.enter="handleSearch"
               type="text"
               placeholder="Search"
               class="w-full h-[39px] pl-14 pr-4 bg-[#F5F6FA] border border-[#D5D5D5] rounded-[20px] text-sm font-normal text-[#202224] opacity-60 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#4379EE] placeholder:text-[#202224] placeholder:opacity-60"
@@ -268,9 +269,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
+import { getInventories, deleteInventory as apiDeleteInventory, testSSHConnection as apiTestSSH, type Inventory as APIInventory } from '@/api/inventory'
 
 const router = useRouter()
 
@@ -286,41 +288,85 @@ interface Inventory {
 const searchQuery = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
+const inventories = ref<Inventory[]>([])
+const loading = ref(false)
+const totalItems = ref(0)
 
-const inventories = ref<Inventory[]>([
-  {
-    id: 1,
-    name: 'Ansible GUI Inventory',
-    status: 'On',
-    sshStatus: 'Connected',
-    group: 'Default',
-    selected: false,
-  },
-  {
-    id: 2,
-    name: 'Ansible introduction Inventory',
-    status: 'Off',
-    sshStatus: 'Unconnected',
-    group: 'Default',
-    selected: false,
-  },
-])
-
-const filteredInventories = computed(() => {
-  if (!searchQuery.value) {
-    return inventories.value
+// 載入 Inventories
+const loadInventories = async () => {
+  try {
+    loading.value = true
+    const response = await getInventories({
+      search: searchQuery.value || undefined,
+      page: currentPage.value,
+      per_page: itemsPerPage.value,
+    })
+    
+    if (response.success) {
+      // 轉換 API 資料格式為前端格式
+      inventories.value = response.data.items.map((item: APIInventory) => ({
+        id: item.id,
+        name: item.name,
+        status: item.status,
+        sshStatus: item.ssh_status,
+        group: item.group,
+        selected: false,
+      }))
+      totalItems.value = response.data.pagination.total
+    }
+  } catch (error) {
+    console.error('載入 Inventories 失敗:', error)
+    alert('載入資料失敗，請確認後端服務是否正常運行')
+  } finally {
+    loading.value = false
   }
-  return inventories.value.filter((inv) =>
-    inv.name.toLowerCase().includes(searchQuery.value.toLowerCase()),
-  )
+}
+
+// 組件掛載時載入資料
+onMounted(() => {
+  loadInventories()
+})
+
+// 監聽搜尋變化
+const filteredInventories = computed(() => {
+  return inventories.value
 })
 
 const totalPages = computed(() => {
-  return Math.ceil(filteredInventories.value.length / itemsPerPage.value)
+  return Math.ceil(totalItems.value / itemsPerPage.value)
 })
 
-const testSSHConnection = () => {
-  alert('SSH連線測試功能')
+const testSSHConnection = async () => {
+  const selected = inventories.value.filter(inv => inv.selected)
+  
+  if (selected.length === 0) {
+    alert('請至少選擇一個 Inventory 進行 SSH 測試')
+    return
+  }
+  
+  try {
+    loading.value = true
+    const response = await apiTestSSH({
+      inventory_ids: selected.map(inv => inv.id)
+    })
+    
+    if (response.success) {
+      // 顯示測試結果
+      let message = 'SSH 連線測試結果:\n\n'
+      response.data.forEach(result => {
+        message += `${result.name}: ${result.status === 'success' ? '✓' : '✗'} ${result.message}\n`
+      })
+      alert(message)
+      
+      // 重新載入列表以更新 ssh_status
+      loadInventories()
+    }
+  } catch (error: any) {
+    console.error('SSH 測試失敗:', error)
+    alert(error.response?.data?.message || 'SSH 測試失敗，請稍後再試')
+  } finally {
+    loading.value = false
+  }
 }
 
 const addNewInventory = () => {
@@ -331,11 +377,18 @@ const editInventory = (inventory: Inventory) => {
   router.push(`/inventory/edit/${inventory.id}`)
 }
 
-const deleteInventory = (inventory: Inventory) => {
+const deleteInventory = async (inventory: Inventory) => {
   if (confirm(`確定要刪除 ${inventory.name}?`)) {
-    const index = inventories.value.findIndex((inv) => inv.id === inventory.id)
-    if (index > -1) {
-      inventories.value.splice(index, 1)
+    try {
+      const response = await apiDeleteInventory(inventory.id)
+      if (response.success) {
+        alert(response.message || 'Inventory 刪除成功')
+        // 重新載入列表
+        loadInventories()
+      }
+    } catch (error) {
+      console.error('刪除失敗:', error)
+      alert('刪除失敗，請稍後再試')
     }
   }
 }
@@ -343,12 +396,20 @@ const deleteInventory = (inventory: Inventory) => {
 const previousPage = () => {
   if (currentPage.value > 1) {
     currentPage.value--
+    loadInventories()
   }
 }
 
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value++
+    loadInventories()
   }
+}
+
+// 監聽搜尋變化時重新載入
+const handleSearch = () => {
+  currentPage.value = 1
+  loadInventories()
 }
 </script>

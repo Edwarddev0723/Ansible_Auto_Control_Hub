@@ -29,28 +29,78 @@
 
         <!-- Main Tab Content -->
         <div v-if="activeTab === 'main'" class="space-y-6">
-          <!-- Name -->
+          <!-- Playbook 名稱 -->
           <div>
-            <label class="mb-2 block text-sm font-medium text-gray-700">Name</label>
+            <label class="mb-2 block text-sm font-medium text-gray-700">
+              Playbook 名稱 <span class="text-red-500">*</span>
+            </label>
             <input
               v-model="form.name"
               type="text"
+              placeholder="請輸入 Playbook 名稱"
               class="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-black focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
               :class="{ 'border-red-400': errors.name }"
             />
             <p v-if="errors.name" class="mt-1 text-xs text-red-500">{{ errors.name }}</p>
           </div>
 
-          <!-- Hosts -->
-            <div>
-            <label class="mb-2 block text-sm font-medium text-gray-700">Hosts</label>
-            <input
-              v-model="form.hosts"
-              type="text"
+          <!-- Target Type Selection -->
+          <div>
+            <label class="mb-2 block text-sm font-medium text-gray-700">
+              目標類型 <span class="text-red-500">*</span>
+            </label>
+            <div class="flex gap-6">
+              <label class="flex items-center">
+                <input
+                  v-model="form.targetType"
+                  type="radio"
+                  value="group"
+                  class="mr-2 h-4 w-4 text-[#4379EE] focus:ring-[#4379EE]"
+                />
+                <span class="text-sm text-gray-700">Group</span>
+              </label>
+              <label class="flex items-center">
+                <input
+                  v-model="form.targetType"
+                  type="radio"
+                  value="host"
+                  class="mr-2 h-4 w-4 text-[#4379EE] focus:ring-[#4379EE]"
+                />
+                <span class="text-sm text-gray-700">Host</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Group Dropdown (when group is selected) -->
+          <div v-if="form.targetType === 'group'">
+            <label class="mb-2 block text-sm font-medium text-gray-700">Group</label>
+            <select
+              v-model="form.group"
               class="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-black focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
-              :class="{ 'border-red-400': errors.hosts }"
-            />
-            <p v-if="errors.hosts" class="mt-1 text-xs text-red-500">{{ errors.hosts }}</p>
+              :class="{ 'border-red-400': errors.group }"
+            >
+              <option value="">請選擇 Group</option>
+              <option v-for="group in availableGroups" :key="group" :value="group">
+                {{ group }}
+              </option>
+            </select>
+            <p v-if="errors.group" class="mt-1 text-xs text-red-500">{{ errors.group }}</p>
+          </div>
+
+          <!-- Host Dropdown (when host is selected) -->
+          <div v-if="form.targetType === 'host'">
+            <label class="mb-2 block text-sm font-medium text-gray-700">Host</label>
+            <select
+              v-model="form.host"
+              class="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-black focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
+              :class="{ 'border-red-400': errors.host }"
+            >
+              <option value="">請選擇 Host</option>
+              <option v-for="host in availableHosts" :key="host" :value="host">
+                {{ host }}
+              </option>
+            </select>
+            <p v-if="errors.host" class="mt-1 text-xs text-red-500">{{ errors.host }}</p>
           </div>
 
           <!-- Gather Facts -->
@@ -63,20 +113,6 @@
               <option :value="false">False</option>
               <option :value="true">True</option>
             </select>
-            <button
-              @click="addMainField"
-              class="mt-4 rounded-lg bg-[#4379EE] px-10 py-3 text-sm font-medium text-white transition-colors hover:bg-[#3868dd]"
-            >
-              新增 Main 欄位
-            </button>
-          </div>
-
-          <div v-for="(field, idx) in extraMainFields" :key="idx" class="mt-4">
-            <input
-              v-model="field.value"
-              :placeholder="field.placeholder"
-              class="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-black focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
-            />
           </div>
 
           <div class="mt-10 flex justify-end gap-4">
@@ -158,22 +194,65 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
+import { createPlaybook } from '@/api/playbook'
+import { getGroups } from '@/api/group'
+import { getInventories } from '@/api/inventory'
 
 const router = useRouter()
 
 interface PlaybookForm {
   name: string
-  hosts: string
+  targetType: 'group' | 'host'
+  group: string
+  host: string
   gatherFacts: boolean
 }
 
 const form = ref<PlaybookForm>({
   name: '',
-  hosts: '',
+  targetType: 'group',
+  group: '',
+  host: '',
   gatherFacts: false,
+})
+
+// 從 API 載入 groups 和 hosts
+const availableGroups = ref<string[]>([])
+const availableHosts = ref<string[]>([])
+const loading = ref(false)
+
+// 載入 Groups
+const loadGroups = async () => {
+  try {
+    const response = await getGroups()
+    if (response.success) {
+      availableGroups.value = response.data.map(g => g.name)
+    }
+  } catch (error) {
+    console.error('載入 Groups 失敗:', error)
+  }
+}
+
+// 載入 Hosts (從 Inventories 獲取)
+const loadHosts = async () => {
+  try {
+    const response = await getInventories({ per_page: 1000 })
+    if (response.success) {
+      // 使用 inventory name 作為 host 選項
+      availableHosts.value = response.data.items.map(inv => inv.name)
+    }
+  } catch (error) {
+    console.error('載入 Hosts 失敗:', error)
+  }
+}
+
+// 組件掛載時載入資料
+onMounted(() => {
+  loadGroups()
+  loadHosts()
 })
 
 const errors = ref<Record<string, string>>({})
@@ -216,11 +295,6 @@ const tasks = ref<TaskItem[]>([
   },
 ])
 
-const extraMainFields = ref<{ value: string; placeholder: string }[]>([])
-const addMainField = () => {
-  extraMainFields.value.push({ value: '', placeholder: '新增 Main 欄位' })
-}
-
 const addTask = () => {
   tasks.value.push({
     id: tasks.value.length + 1,
@@ -231,24 +305,96 @@ const addTask = () => {
 
 const validateMain = () => {
   errors.value = {}
-  if (!form.value.name.trim()) errors.value.name = 'Name is required'
-  if (!form.value.hosts.trim()) errors.value.hosts = 'Hosts is required'
+  
+  if (!form.value.name.trim()) {
+    errors.value.name = 'Playbook 名稱為必填'
+    alert('請輸入 Playbook 名稱')
+    return false
+  }
+  
+  if (form.value.targetType === 'group' && !form.value.group.trim()) {
+    errors.value.group = '請選擇目標群組'
+    alert('請選擇目標群組')
+    return false
+  }
+  
+  if (form.value.targetType === 'host' && !form.value.host.trim()) {
+    errors.value.host = '請選擇目標主機'
+    alert('請選擇目標主機')
+    return false
+  }
+  
   return Object.keys(errors.value).length === 0
 }
 
-const continueNext = () => {
+const validateTasks = () => {
+  const enabledTasks = tasks.value.filter(t => t.enabled)
+  
+  if (enabledTasks.length === 0) {
+    alert('請至少啟用一個 Task')
+    return false
+  }
+  
+  // 檢查每個啟用的 task 是否有內容
+  for (const task of enabledTasks) {
+    if (!task.content.trim()) {
+      alert('所有啟用的 Task 都必須填寫內容')
+      return false
+    }
+  }
+  
+  return true
+}
+
+const continueNext = async () => {
   if (activeTab.value === 'main') {
     if (!validateMain()) return
     activeTab.value = 'tasks'
   } else {
-    // Collect enabled tasks and simulate save
-    const enabledTasks = tasks.value.filter(t => t.enabled)
-    console.log('Saving playbook:', {
-      main: form.value,
-      tasks: enabledTasks,
-    })
-    alert(`Playbook 已建立，啟用任務: ${enabledTasks.length} (示意)`)    
-    router.push('/playbook')
+    // 在儲存前驗證所有必填欄位
+    if (!validateMain()) {
+      activeTab.value = 'main'
+      return
+    }
+    
+    if (!validateTasks()) {
+      return
+    }
+    
+    // 儲存 Playbook
+    try {
+      loading.value = true
+      const enabledTasks = tasks.value.filter(t => t.enabled)
+      
+      const playbookData = {
+        name: form.value.name,
+        type: 'Machine' as const,
+        target_type: form.value.targetType,
+        group: form.value.targetType === 'group' ? form.value.group : undefined,
+        host: form.value.targetType === 'host' ? form.value.host : undefined,
+        main: {
+          hosts: form.value.targetType === 'group' ? form.value.group : form.value.host,
+          gather_facts: form.value.gatherFacts,
+        },
+        tasks: enabledTasks.map((t, index) => ({
+          enabled: t.enabled,
+          content: t.content,
+          order: index,
+        })),
+      }
+      
+      const response = await createPlaybook(playbookData)
+      
+      if (response.success) {
+        alert(response.message || 'Playbook 創建成功！')
+        router.push('/playbook')
+      }
+    } catch (error: any) {
+      console.error('建立 Playbook 失敗:', error)
+      alert(error.response?.data?.message || '建立失敗，請稍後再試')
+    } finally {
+      loading.value = false
+    }
   }
 }
 

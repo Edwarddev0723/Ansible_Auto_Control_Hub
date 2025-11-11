@@ -1,1 +1,172 @@
-* text=auto eol=lf
+# ================================
+# Git Attributes Configuration
+# Auto detect text files and perform LF normalization
+# ================================
+
+# Auto detect text files
+* text=auto
+
+# ============== Source Code ==============
+# Python
+*.py text eol=lf
+*.pyx text eol=lf
+*.pyi text eol=lf
+*.pyw text eol=lf
+
+# JavaScript / TypeScript
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+
+# Vue
+*.vue text eol=lf
+
+# JSON
+*.json text eol=lf
+*.jsonc text eol=lf
+
+# YAML
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# ============== Web ==============
+*.html text eol=lf
+*.htm text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.sass text eol=lf
+*.less text eol=lf
+
+# ============== Config Files ==============
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+*.conf text eol=lf
+.editorconfig text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# ============== Documentation ==============
+*.md text eol=lf
+*.markdown text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+*.adoc text eol=lf
+
+# ============== Shell Scripts ==============
+*.sh text eol=lf
+*.bash text eol=lf
+*.zsh text eol=lf
+*.fish text eol=lf
+
+# Windows Scripts
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# ============== SQL ==============
+*.sql text eol=lf
+
+# ============== Docker ==============
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+
+# ============== Environment ==============
+.env* text eol=lf
+*.env text eol=lf
+
+# ============== Binary Files ==============
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.webp binary
+*.bmp binary
+*.tiff binary
+
+# Fonts
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.rar binary
+*.7z binary
+
+# Documents
+*.pdf binary
+*.doc binary
+*.docx binary
+*.xls binary
+*.xlsx binary
+*.ppt binary
+*.pptx binary
+
+# Audio/Video
+*.mp3 binary
+*.mp4 binary
+*.avi binary
+*.mov binary
+*.wmv binary
+*.flv binary
+*.webm binary
+*.wav binary
+*.ogg binary
+
+# Executables
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+# Python compiled
+*.pyc binary
+*.pyo binary
+*.pyd binary
+
+# ============== Package Files ==============
+*.whl binary
+*.egg binary
+*.jar binary
+*.war binary
+*.ear binary
+
+# Node modules (binary)
+node_modules/** linguist-vendored
+
+# ============== Diff Settings ==============
+# Use Python syntax for diffs
+*.py diff=python
+
+# Use CSS syntax for diffs
+*.css diff=css
+
+# Use HTML syntax for diffs
+*.html diff=html
+
+# ============== Linguist Overrides ==============
+# Mark generated files
+*.generated.* linguist-generated
+*-generated.* linguist-generated
+
+# Vendor files
+vendor/** linguist-vendored
+node_modules/** linguist-vendored
+bower_components/** linguist-vendored
+
+# Documentation
+docs/** linguist-documentation
+*.md linguist-documentation

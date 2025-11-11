@@ -1,15 +1,14 @@
 <template>
-  <AppLayout>
-    <div class="flex h-screen flex-col bg-[#FAFBFD]">
-      <!-- Header -->
-      <header class="h-[100px] border-b border-[#E6EFF5] bg-white px-4 lg:px-10 flex items-center">
-        <h1 class="text-xl lg:text-[28px] font-semibold text-primary ml-12 lg:ml-0">AI Talk</h1>
-      </header>
+  <div class="flex h-screen flex-col bg-[#FAFBFD]">
+    <!-- Header -->
+    <header class="h-[100px] border-b border-[#E6EFF5] bg-white px-4 lg:px-10 flex items-center">
+      <h1 class="text-xl lg:text-[28px] font-semibold text-primary ml-12 lg:ml-0">AI Talk</h1>
+    </header>
 
-      <!-- Chat Container -->
-      <div class="flex flex-1 overflow-hidden">
-        <!-- Chat Content -->
-        <div class="flex flex-1 flex-col">
+    <!-- Chat Container -->
+    <div class="flex flex-1 overflow-hidden">
+      <!-- Chat Content -->
+      <div class="flex flex-1 flex-col">
           <!-- Chat Header with Contact Name -->
           <div class="bg-white px-6 py-4 shadow-sm">
             <button @click="goBack" class="flex items-center gap-3 text-[#333B69] hover:text-[#4379EE] transition-colors">
@@ -172,18 +171,19 @@
         </div>
       </div>
     </div>
-  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import AppLayout from '@/components/AppLayout.vue'
+import { sendChatMessage, checkAIHealth, type ChatMessage as APIChatMessage } from '@/api/ai'
 
 const router = useRouter()
 const messagesContainer = ref<HTMLElement | null>(null)
 const newMessage = ref('')
 const quickReplies = ref(['Yes', 'No'])
+const loading = ref(false)
+const aiStatus = ref<'connected' | 'disconnected' | 'error'>('disconnected')
 
 interface Message {
   id: number
@@ -195,23 +195,33 @@ interface Message {
 const messages = ref<Message[]>([
   {
     id: 1,
-    text: 'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters.',
-    time: '6:30 pm',
-    isUser: false,
-  },
-  {
-    id: 2,
-    text: 'There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour.',
-    time: '6:34 pm',
-    isUser: true,
-  },
-  {
-    id: 3,
-    text: 'The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using \'Content here, content here\', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default.Contrary to popular belief, Lorem Ipsum is not simply random text is the model text for your company.',
-    time: '6:38 pm',
+    text: 'Hello! I am your AI assistant for Ansible automation. How can I help you today?',
+    time: getCurrentTime(),
     isUser: false,
   },
 ])
+
+// 獲取當前時間格式化
+function getCurrentTime(): string {
+  const now = new Date()
+  return now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+}
+
+// 檢查 AI 服務狀態
+const checkStatus = async () => {
+  try {
+    const response = await checkAIHealth()
+    aiStatus.value = response.data.status
+  } catch (error) {
+    console.error('檢查 AI 狀態失敗:', error)
+    aiStatus.value = 'error'
+  }
+}
+
+onMounted(() => {
+  scrollToBottom()
+  checkStatus()
+})
 
 // Scroll to bottom when messages change
 const scrollToBottom = () => {
@@ -222,37 +232,68 @@ const scrollToBottom = () => {
   })
 }
 
-onMounted(() => {
-  scrollToBottom()
-})
+// 將聊天歷史轉換為 API 格式
+const getChatHistory = (): APIChatMessage[] => {
+  return messages.value.map(msg => ({
+    role: msg.isUser ? ('user' as const) : ('assistant' as const),
+    content: msg.text,
+  }))
+}
 
 // Send message
-const sendMessage = () => {
-  if (!newMessage.value.trim()) return
+const sendMessage = async () => {
+  if (!newMessage.value.trim() || loading.value) return
 
-  const now = new Date()
-  const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const userMessageText = newMessage.value
+  const time = getCurrentTime()
 
+  // 添加用戶訊息到介面
   messages.value.push({
     id: messages.value.length + 1,
-    text: newMessage.value,
+    text: userMessageText,
     time,
     isUser: true,
   })
 
   newMessage.value = ''
   scrollToBottom()
+  loading.value = true
 
-  // Simulate AI response after a delay
-  setTimeout(() => {
+  try {
+    // 準備聊天歷史
+    const chatHistory = getChatHistory()
+
+    // 發送到 AI API
+    const response = await sendChatMessage({
+      messages: chatHistory,
+      model: 'gpt-4',
+      temperature: 0.7,
+    })
+
+    if (response.success) {
+      // 添加 AI 回覆到介面
+      messages.value.push({
+        id: messages.value.length + 1,
+        text: response.data.content,
+        time: getCurrentTime(),
+        isUser: false,
+      })
+      scrollToBottom()
+    }
+  } catch (error: any) {
+    console.error('發送訊息失敗:', error)
+    
+    // 顯示錯誤訊息
     messages.value.push({
       id: messages.value.length + 1,
-      text: 'Thank you for your message. How can I assist you further?',
-      time,
+      text: '抱歉，AI 服務目前無法使用。請稍後再試或聯繫系統管理員。',
+      time: getCurrentTime(),
       isUser: false,
     })
     scrollToBottom()
-  }, 1000)
+  } finally {
+    loading.value = false
+  }
 }
 
 // Send quick reply

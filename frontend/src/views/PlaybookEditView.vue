@@ -73,25 +73,59 @@
 
         <!-- Main Tab -->
         <div v-if="activeTab === 'main'" class="space-y-6">
-          <!-- Name -->
+          <!-- Target Type Selection -->
           <div>
-            <label class="mb-2 block text-sm font-medium text-gray-700">Name</label>
-            <input
-              :value="form.name"
-              type="text"
-              class="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-black focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
-              readonly
-            />
+            <label class="mb-2 block text-sm font-medium text-gray-700">目標類型</label>
+            <div class="flex gap-6">
+              <label class="flex items-center">
+                <input
+                  v-model="form.targetType"
+                  type="radio"
+                  value="group"
+                  class="mr-2 h-4 w-4 text-[#4379EE] focus:ring-[#4379EE]"
+                />
+                <span class="text-sm text-gray-700">Group</span>
+              </label>
+              <label class="flex items-center">
+                <input
+                  v-model="form.targetType"
+                  type="radio"
+                  value="host"
+                  class="mr-2 h-4 w-4 text-[#4379EE] focus:ring-[#4379EE]"
+                />
+                <span class="text-sm text-gray-700">Host</span>
+              </label>
+            </div>
           </div>
-          <!-- Hosts -->
-          <div>
-            <label class="mb-2 block text-sm font-medium text-gray-700">Hosts</label>
-            <input
-              v-model="form.hosts"
-              type="text"
+
+          <!-- Group Dropdown (when group is selected) -->
+          <div v-if="form.targetType === 'group'">
+            <label class="mb-2 block text-sm font-medium text-gray-700">Group</label>
+            <select
+              v-model="form.group"
               class="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-black focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
-            />
+            >
+              <option value="">請選擇 Group</option>
+              <option v-for="group in availableGroups" :key="group" :value="group">
+                {{ group }}
+              </option>
+            </select>
           </div>
+
+          <!-- Host Dropdown (when host is selected) -->
+          <div v-if="form.targetType === 'host'">
+            <label class="mb-2 block text-sm font-medium text-gray-700">Host</label>
+            <select
+              v-model="form.host"
+              class="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-black focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
+            >
+              <option value="">請選擇 Host</option>
+              <option v-for="host in availableHosts" :key="host" :value="host">
+                {{ host }}
+              </option>
+            </select>
+          </div>
+          
           <!-- Gather Facts -->
           <div>
             <label class="mb-2 block text-sm font-medium text-gray-700">Gather_facts</label>
@@ -102,20 +136,8 @@
               <option :value="false">False</option>
               <option :value="true">True</option>
             </select>
-            <button
-              @click="addMainField"
-              class="mt-4 rounded-lg bg-[#4379EE] px-10 py-3 text-sm font-medium text-white transition-colors hover:bg-[#3868dd]"
-            >
-              新增 Main 欄位
-            </button>
           </div>
-          <div v-for="(field, idx) in extraMainFields" :key="idx" class="mt-4">
-            <input
-              v-model="field.value"
-              :placeholder="field.placeholder"
-              class="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-black focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
-            />
-          </div>
+
           <div class="mt-8 flex justify-end gap-4">
             <button
               @click="activeTab = 'info'"
@@ -193,9 +215,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
+import { getGroups } from '@/api/group'
+import { getInventories } from '@/api/inventory'
 
 const router = useRouter()
 const route = useRoute()
@@ -209,12 +233,48 @@ const activeTab = ref('info')
 
 const form = ref({
   name: '',
-  hosts: '',
+  targetType: 'group' as 'group' | 'host',
+  group: '',
+  host: '',
   gatherFacts: false,
   type: 'Machine',
   typeOther: 'Other',
   main: '',
   task: '',
+})
+
+// 從 API 載入 groups 和 hosts
+const availableGroups = ref<string[]>([])
+const availableHosts = ref<string[]>([])
+
+// 載入 Groups
+const loadGroups = async () => {
+  try {
+    const response = await getGroups()
+    if (response.success) {
+      availableGroups.value = response.data.map(g => g.name)
+    }
+  } catch (error) {
+    console.error('載入 Groups 失敗:', error)
+  }
+}
+
+// 載入 Hosts (從 Inventories 獲取)
+const loadHosts = async () => {
+  try {
+    const response = await getInventories({ per_page: 1000 })
+    if (response.success) {
+      availableHosts.value = response.data.items.map(inv => inv.name)
+    }
+  } catch (error) {
+    console.error('載入 Hosts 失敗:', error)
+  }
+}
+
+// 組件掛載時載入資料
+onMounted(() => {
+  loadGroups()
+  loadHosts()
 })
 
 const mainList = ref([
@@ -251,10 +311,5 @@ const prevTab = () => {
 const saveEdit = () => {
   // TODO: 儲存 playbook 編輯內容
   router.push('/playbook')
-}
-
-const extraMainFields = ref<{ value: string; placeholder: string }[]>([])
-const addMainField = () => {
-  extraMainFields.value.push({ value: '', placeholder: '新增 Main 欄位' })
 }
 </script>
