@@ -1,0 +1,12 @@
+services:
+  web_frontend:
+    build:
+      context: ..  # 使用上層目錄（專案根目錄）作為 build context
+      dockerfile: infra/Dockerfile  # Dockerfile 路徑相對於 context
+    image: vue-static-demo:latest 
+    container_name: demo_frontend_web
+    restart: always
+    ports:
+      - "8080:80"
+    # volumes:
+      # - ../frontend/dist:/usr/share/nginx/html:ro

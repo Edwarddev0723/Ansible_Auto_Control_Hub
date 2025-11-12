@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import inventories, playbooks, groups, hosts, ai_chat
+from app.routers import inventories, playbooks, groups, hosts, ai_chat, galaxy
 from app.database import engine, Base
 
 # 建立資料表
@@ -23,6 +23,7 @@ app.include_router(playbooks.router, prefix="/api/playbooks", tags=["playbooks"]
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 app.include_router(hosts.router, prefix="/api/hosts", tags=["hosts"])
 app.include_router(ai_chat.router, prefix="/api/ai", tags=["ai"])
+app.include_router(galaxy.router, prefix="/api/galaxy", tags=["galaxy"])
 
 @app.get("/")
 def read_root():

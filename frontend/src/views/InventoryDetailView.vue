@@ -60,23 +60,29 @@
 
           <!-- Server Name -->
           <div>
-            <label class="mb-2 block text-sm font-medium text-gray-700">Server Name</label>
+            <label class="mb-2 block text-sm font-medium text-gray-700">
+              Server Name (主機別名)
+              <span class="ml-2 text-xs text-gray-500">在 Playbook 中用來識別此伺服器</span>
+            </label>
             <input
               v-model="formData.serverName"
               type="text"
               class="w-full rounded-lg border border-gray-200 bg-[#FAFBFD] p-3 text-sm text-gray-700 focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
-              placeholder="例如: server1"
+              placeholder="例如: web-server-1, db-primary, nginx-proxy"
             />
           </div>
 
           <!-- SSH Host -->
           <div>
-            <label class="mb-2 block text-sm font-medium text-gray-700">SSH Host (IP Address)</label>
+            <label class="mb-2 block text-sm font-medium text-gray-700">
+              SSH Host (IP Address)
+              <span class="ml-2 text-xs text-gray-500">實際連線的 IP 位址</span>
+            </label>
             <input
               v-model="formData.sshHost"
               type="text"
               class="w-full rounded-lg border border-gray-200 bg-[#FAFBFD] p-3 text-sm text-gray-700 focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
-              placeholder="例如: 127.0.0.1"
+              placeholder="例如: 192.168.1.100 或 127.0.0.1"
             />
           </div>
 
@@ -91,6 +97,17 @@
             />
           </div>
 
+          <!-- SSH User -->
+          <div>
+            <label class="mb-2 block text-sm font-medium text-gray-700">SSH User</label>
+            <input
+              v-model="formData.sshUser"
+              type="text"
+              class="w-full rounded-lg border border-gray-200 bg-[#FAFBFD] p-3 text-sm text-gray-700 focus:border-[#4379EE] focus:outline-none focus:ring-2 focus:ring-[#4379EE] focus:ring-opacity-20"
+              placeholder="例如: root, ubuntu, admin"
+            />
+          </div>
+
           <!-- SSH Password -->
           <div>
             <label class="mb-2 block text-sm font-medium text-gray-700">SSH Password</label>
@@ -102,11 +119,6 @@
             />
           </div>
 
-          <!-- Preview -->
-          <div v-if="generatedConfig" class="rounded-lg bg-gray-50 p-4">
-            <label class="mb-2 block text-xs font-medium text-gray-500">預覽配置</label>
-            <pre class="font-mono text-sm text-gray-700">{{ generatedConfig }}</pre>
-          </div>
         </div>
 
         <!-- Action Buttons -->
@@ -151,6 +163,7 @@ const formData = ref({
   serverName: '',
   sshHost: '',
   sshPort: '',
+  sshUser: 'root',  // 預設 root，但可修改
   sshPass: '',
 })
 
@@ -182,16 +195,16 @@ const goToGroupManagement = () => {
 
 // 生成 Ansible Inventory 配置字串
 const generatedConfig = computed(() => {
-  const { serverName, sshHost, sshPort, sshPass } = formData.value
-  if (!serverName || !sshHost || !sshPort || !sshPass) {
+  const { serverName, sshHost, sshPort, sshUser, sshPass } = formData.value
+  if (!serverName || !sshHost || !sshPort || !sshUser || !sshPass) {
     return ''
   }
-  return `${serverName} ansible_ssh_host=${sshHost} ansible_ssh_port=${sshPort} ansible_ssh_pass=${sshPass}`
+  return `${serverName} ansible_ssh_host=${sshHost} ansible_ssh_port=${sshPort} ansible_ssh_user=${sshUser} ansible_ssh_pass=${sshPass}`
 })
 
 // 解析現有配置
 const parseConfig = (config: string) => {
-  // 解析格式: server1 ansible_ssh_host=127.0.0.1 ansible_ssh_port=55000 ansible_ssh_pass=docker
+  // 解析格式: server1 ansible_ssh_host=127.0.0.1 ansible_ssh_port=55000 ansible_ssh_user=root ansible_ssh_pass=docker
   const parts = config.split(' ')
   if (parts.length >= 4) {
     formData.value.serverName = parts[0]
@@ -201,6 +214,8 @@ const parseConfig = (config: string) => {
         formData.value.sshHost = part.split('=')[1]
       } else if (part.includes('ansible_ssh_port=')) {
         formData.value.sshPort = part.split('=')[1]
+      } else if (part.includes('ansible_ssh_user=')) {
+        formData.value.sshUser = part.split('=')[1]
       } else if (part.includes('ansible_ssh_pass=')) {
         formData.value.sshPass = part.split('=')[1]
       }
@@ -266,6 +281,11 @@ const handleSave = async () => {
   
   if (!formData.value.sshPort.trim()) {
     alert('請輸入 SSH Port')
+    return
+  }
+  
+  if (!formData.value.sshUser.trim()) {
+    alert('請輸入 SSH 使用者名稱')
     return
   }
   

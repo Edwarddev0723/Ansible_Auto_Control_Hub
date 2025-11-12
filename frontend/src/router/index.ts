@@ -30,6 +30,11 @@ const router = createRouter({
       component: () => import('../views/AITalkView.vue'),
     },
     {
+      path: '/galaxy',
+      name: 'galaxy',
+      component: () => import('../views/GalaxyView.vue'),
+    },
+    {
       path: '/inventory/new',
       name: 'inventory-new',
       component: () => import('../views/InventoryDetailView.vue'),

@@ -1,8 +1,947 @@
 # Ansible Auto Control Hub - Backend API 規格文件
 
-> 本文件根據前端代碼推論後端 API 需求規格  
-> 文件版本: 1.0  
-> 最後更新: 2025-11-10
+> 本文件描述後端實際實作的 API 規格  
+> 文件版本: 2.0  
+> 最後更新: 2025-11-12
+
+## 目錄
+
+- [概述](#概述)
+- [系統架構](#系統架構)
+- [通用規範](#通用規範)
+- [Inventory 管理 API](#inventory-管理-api)
+- [Playbook 管理 API](#playbook-管理-api)
+- [Group 管理 API](#group-管理-api)
+- [Host 管理 API](#host-管理-api)
+- [Galaxy Collections API](#galaxy-collections-api)
+- [AI 對話 API](#ai-對話-api)
+- [資料模型](#資料模型)
+- [錯誤代碼](#錯誤代碼)
+
+---
+
+## 概述
+
+Ansible Auto Control Hub API 基於 FastAPI 框架構建，提供完整的 RESTful API 介面，用於管理 Ansible Inventory、Playbook、Galaxy Collections 等資源。
+
+### 技術棧
+- **後端框架**: FastAPI 0.104+
+- **資料庫**: MySQL 8.0+
+- **ORM**: SQLAlchemy 2.0+
+- **遷移工具**: Alembic
+- **驗證**: Pydantic
+- **文件**: Swagger UI / ReDoc
+
+### Base URL
+```
+開發環境: http://localhost:8000
+API 路徑: /api
+健康檢查: /health
+API 文件: /docs
+```
+
+---
+
+## 系統架構
+
+### 資料庫設計
+
+**核心資料表**:
+- `groups` - 伺服器群組
+- `hosts` - 主機列表
+- `inventories` - Ansible Inventory 配置
+- `playbooks` - Playbook 定義
+- `tasks` - Playbook 任務
+- `playbook_extra_fields` - Playbook 擴充欄位 (JSON 格式)
+
+**關聯關係**:
+```
+Group (1) ─→ (N) Inventory
+Playbook (1) ─→ (N) Task
+Playbook (1) ─→ (N) PlaybookExtraField
+```
+
+---
+
+## 通用規範
+
+### 請求格式
+- **Content-Type**: `application/json`
+- **字元編碼**: UTF-8
+- **認證方式**: 無 (未來可加入 Bearer Token)
+
+### 響應格式
+
+**成功響應**:
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "操作成功"
+}
+```
+
+**失敗響應** (HTTP 4xx/5xx):
+```json
+{
+  "detail": "錯誤訊息"
+}
+```
+
+### 分頁參數
+- `skip`: 略過的筆數 (默認 0)
+- `limit`: 返回筆數上限 (默認 100)
+
+---
+
+## Inventory 管理 API
+
+### 1. 獲取 Inventory 列表
+
+**端點**: `GET /api/inventories`
+
+**查詢參數**:
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| skip | integer | 否 | 略過筆數 (默認 0) |
+| limit | integer | 否 | 返回上限 (默認 100) |
+
+**請求範例**:
+```bash
+GET /api/inventories?skip=0&limit=10
+```
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "test_inventor",
+      "status": "On",
+      "ssh_status": "Connected",
+      "group": "databases",
+      "config": "eason ansible_ssh_host=127.0.0.1 ansible_ssh_port=22...",
+      "created_at": "2025-11-12T10:00:00",
+      "updated_at": "2025-11-12T10:00:00"
+    }
+  ]
+}
+```
+
+---
+
+### 2. 獲取單一 Inventory
+
+**端點**: `GET /api/inventories/{inventory_id}`
+
+**路徑參數**:
+| 參數 | 類型 | 說明 |
+|------|------|------|
+| inventory_id | integer | Inventory ID |
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "test_inventor",
+    "status": "On",
+    "ssh_status": "Connected",
+    "group": "databases",
+    "config": "eason ansible_ssh_host=127.0.0.1...",
+    "created_at": "2025-11-12T10:00:00",
+    "updated_at": "2025-11-12T10:00:00"
+  }
+}
+```
+
+---
+
+### 3. 創建 Inventory
+
+**端點**: `POST /api/inventories`
+
+**請求體**:
+```json
+{
+  "name": "web_server_1",
+  "status": "Off",
+  "ssh_status": "Unconnected",
+  "group": "webservers",
+  "config": "web1 ansible_ssh_host=192.168.1.10 ansible_ssh_port=22 ansible_ssh_user=admin"
+}
+```
+
+**欄位說明**:
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| name | string | 是 | Inventory 名稱 (唯一) |
+| status | string | 否 | 伺服器狀態 (On/Off，默認 Off) |
+| ssh_status | string | 否 | SSH 連線狀態 (默認 Unconnected) |
+| group | string | 否 | 所屬群組 (默認 Default) |
+| config | string | 否 | Ansible inventory 配置 |
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 2,
+    "name": "web_server_1",
+    "status": "Off",
+    "ssh_status": "Unconnected",
+    "group": "webservers",
+    "config": "web1 ansible_ssh_host=192.168.1.10...",
+    "created_at": "2025-11-12T11:00:00",
+    "updated_at": "2025-11-12T11:00:00"
+  },
+  "message": "Inventory created successfully"
+}
+```
+
+---
+
+### 4. 更新 Inventory
+
+**端點**: `PUT /api/inventories/{inventory_id}`
+
+**請求體**: 同創建 API
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": { /* 更新後的 Inventory */ },
+  "message": "Inventory updated successfully"
+}
+```
+
+---
+
+### 5. 刪除 Inventory
+
+**端點**: `DELETE /api/inventories/{inventory_id}`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "message": "Inventory deleted successfully"
+}
+```
+
+---
+
+### 6. SSH 連線測試
+
+**端點**: `POST /api/inventories/ssh-test`
+
+**請求體**:
+```json
+{
+  "inventory_ids": [1, 2]
+}
+```
+
+**欄位說明**:
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| inventory_ids | array | 是 | 要測試的 Inventory ID 列表 |
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": {
+    "results": [
+      {
+        "inventory_id": 1,
+        "name": "test_inventor",
+        "success": true,
+        "message": "SSH connection successful"
+      },
+      {
+        "inventory_id": 2,
+        "name": "web_server_1",
+        "success": false,
+        "message": "Connection timeout"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## Playbook 管理 API
+
+### 1. 獲取 Playbook 列表
+
+**端點**: `GET /api/playbooks`
+
+**查詢參數**:
+| 參數 | 類型 | 說明 |
+|------|------|------|
+| skip | integer | 略過筆數 |
+| limit | integer | 返回上限 |
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "test",
+      "type": "Machine",
+      "status": "Success",
+      "target_type": "group",
+      "group": "databases",
+      "host": null,
+      "gather_facts": false,
+      "last_run_at": "2025-11-12T10:00:00",
+      "created_at": "2025-11-12T09:00:00",
+      "updated_at": "2025-11-12T10:00:00"
+    }
+  ]
+}
+```
+
+---
+
+### 2. 獲取單一 Playbook (含 Tasks)
+
+**端點**: `GET /api/playbooks/{playbook_id}`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "test",
+    "type": "Machine",
+    "status": "Success",
+    "target_type": "group",
+    "group": "databases",
+    "host": null,
+    "gather_facts": false,
+    "main": {
+      "hosts": "databases",
+      "gather_facts": false
+    },
+    "tasks": [
+      {
+        "id": 1,
+        "order": 0,
+        "enabled": true,
+        "content": "name: Install packages\nshell: |\n  npm install\nargs:\n  chdir: /app"
+      }
+    ],
+    "extra_fields": {
+      "working_directory": "C:\\Users\\user\\project\\ansible"
+    },
+    "last_run_at": "2025-11-12T10:00:00",
+    "created_at": "2025-11-12T09:00:00",
+    "updated_at": "2025-11-12T10:00:00"
+  }
+}
+```
+
+---
+
+### 3. 創建 Playbook
+
+**端點**: `POST /api/playbooks`
+
+**請求體**:
+```json
+{
+  "name": "deploy_nginx",
+  "type": "Machine",
+  "target_type": "group",
+  "group": "webservers",
+  "host": null,
+  "main": {
+    "hosts": "webservers",
+    "gather_facts": true
+  },
+  "tasks": [
+    {
+      "order": 0,
+      "enabled": true,
+      "content": "name: Install Nginx\napt:\n  name: nginx\n  state: present"
+    }
+  ],
+  "extra_fields": {
+    "working_directory": "/opt/ansible"
+  }
+}
+```
+
+**欄位說明**:
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| name | string | 是 | Playbook 名稱 (唯一) |
+| type | string | 否 | 類型 (Machine/Other，默認 Machine) |
+| target_type | string | 否 | 目標類型 (group/host，默認 group) |
+| group | string | 條件 | target_type=group 時必填 |
+| host | string | 條件 | target_type=host 時必填 |
+| main | object | 是 | 主要配置 |
+| main.hosts | string | 是 | 目標主機/群組 |
+| main.gather_facts | boolean | 否 | 是否收集事實 (默認 false) |
+| tasks | array | 是 | 任務列表 |
+| tasks[].order | integer | 是 | 執行順序 |
+| tasks[].enabled | boolean | 是 | 是否啟用 |
+| tasks[].content | string | 是 | 任務 YAML 內容 |
+| extra_fields | object | 否 | 擴充欄位 (如 working_directory) |
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": { /* 創建的 Playbook */ },
+  "message": "Playbook created successfully"
+}
+```
+
+---
+
+### 4. 更新 Playbook
+
+**端點**: `PUT /api/playbooks/{playbook_id}`
+
+**請求體**: 同創建 API (可部分更新)
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": { /* 更新後的 Playbook */ },
+  "message": "Playbook updated successfully"
+}
+```
+
+---
+
+### 5. 刪除 Playbook
+
+**端點**: `DELETE /api/playbooks/{playbook_id}`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "message": "Playbook deleted successfully"
+}
+```
+
+---
+
+### 6. 執行 Playbook
+
+**端點**: `POST /api/playbooks/execute`
+
+**請求體**:
+```json
+{
+  "playbook_ids": [1, 2],
+  "inventory_id": null,
+  "extra_vars": {}
+}
+```
+
+**欄位說明**:
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| playbook_ids | array | 是 | 要執行的 Playbook ID 列表 |
+| inventory_id | integer | 否 | 指定的 Inventory (null 則自動生成) |
+| extra_vars | object | 否 | 額外變數 |
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": {
+    "results": [
+      {
+        "playbook_id": 1,
+        "playbook_name": "test",
+        "success": true,
+        "output": "PLAY [databases] ***...",
+        "error": null,
+        "execution_time": 5.23
+      }
+    ]
+  },
+  "message": "Playbook execution completed"
+}
+```
+
+**執行機制**:
+- 支援 Windows WSL 執行 (自動路徑轉換)
+- 支援 working_directory 設定
+- 支援 group/host 目標選擇
+- 自動生成臨時 inventory.ini (如未指定)
+- 超時時間: 60 秒
+
+---
+
+## Group 管理 API
+
+### 1. 獲取 Group 列表
+
+**端點**: `GET /api/groups`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "webservers",
+      "created_at": "2025-11-12T09:00:00"
+    },
+    {
+      "id": 2,
+      "name": "databases",
+      "created_at": "2025-11-12T09:00:00"
+    }
+  ]
+}
+```
+
+---
+
+### 2. 創建 Group
+
+**端點**: `POST /api/groups`
+
+**請求體**:
+```json
+{
+  "name": "production"
+}
+```
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 3,
+    "name": "production",
+    "created_at": "2025-11-12T11:00:00"
+  },
+  "message": "Group 創建成功"
+}
+```
+
+---
+
+### 3. 刪除 Group
+
+**端點**: `DELETE /api/groups/{group_id}`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "message": "Group 刪除成功"
+}
+```
+
+---
+
+## Host 管理 API
+
+### 1. 獲取 Host 列表
+
+**端點**: `GET /api/hosts`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "address": "192.168.1.10",
+      "created_at": "2025-11-12T09:00:00"
+    }
+  ]
+}
+```
+
+---
+
+### 2. 創建 Host
+
+**端點**: `POST /api/hosts`
+
+**請求體**:
+```json
+{
+  "address": "192.168.1.20"
+}
+```
+
+---
+
+### 3. 刪除 Host
+
+**端點**: `DELETE /api/hosts/{host_id}`
+
+---
+
+## Galaxy Collections API
+
+### 1. 列出已安裝的 Collections
+
+**端點**: `GET /api/galaxy/collections`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "name": "community.docker",
+      "version": "3.4.11",
+      "path": "/usr/share/ansible/collections/ansible_collections"
+    },
+    {
+      "name": "ansible.posix",
+      "version": "1.5.4",
+      "path": "/usr/share/ansible/collections/ansible_collections"
+    }
+  ]
+}
+```
+
+**執行機制**:
+- 執行 `ansible-galaxy collection list --format json`
+- 支援 Windows WSL 自動調用
+- 解析 JSON 輸出並格式化
+
+---
+
+### 2. 安裝單一 Collection
+
+**端點**: `POST /api/galaxy/collections/install`
+
+**請求體**:
+```json
+{
+  "name": "community.docker",
+  "version": "3.4.11"
+}
+```
+
+**欄位說明**:
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| name | string | 是 | Collection 名稱 |
+| version | string | 否 | 版本號 (留空安裝最新版) |
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "message": "Installation completed",
+  "output": "Starting galaxy collection install process...",
+  "error": null
+}
+```
+
+---
+
+### 3. 卸載 Collection
+
+**端點**: `DELETE /api/galaxy/collections/{collection_name}`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "message": "Collection found at: /path/to/collection",
+  "path": "/usr/share/ansible/collections/ansible_collections/community/docker",
+  "note": "Please manually delete this directory to uninstall"
+}
+```
+
+**說明**: ansible-galaxy 沒有內建 uninstall 指令，API 返回路徑供手動刪除
+
+---
+
+### 4. 取得 requirements.yml
+
+**端點**: `GET /api/galaxy/requirements`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": {
+    "collections": [
+      {
+        "name": "community.docker",
+        "version": "3.4.11"
+      },
+      {
+        "name": "ansible.posix"
+      }
+    ],
+    "roles": [],
+    "yaml": "collections:\n- name: community.docker\n  version: 3.4.11\n..."
+  }
+}
+```
+
+---
+
+### 5. 更新 requirements.yml
+
+**端點**: `POST /api/galaxy/requirements`
+
+**請求體**:
+```json
+{
+  "collections": [
+    {
+      "name": "community.docker",
+      "version": "3.4.11"
+    },
+    {
+      "name": "community.general"
+    }
+  ]
+}
+```
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "message": "Requirements updated successfully",
+  "data": {
+    "collections": [ /* 更新後的列表 */ ]
+  }
+}
+```
+
+---
+
+### 6. 安裝 requirements.yml
+
+**端點**: `POST /api/galaxy/requirements/install`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "message": "Installation completed",
+  "output": "Starting galaxy collection install process...",
+  "error": null
+}
+```
+
+**執行機制**:
+- 執行 `ansible-galaxy collection install -r requirements.yml --force`
+- Windows 自動轉換路徑為 WSL 格式 (`C:\...` → `/mnt/c/...`)
+- 超時時間: 300 秒
+
+---
+
+### 7. 檢查 Playbook 依賴
+
+**端點**: `GET /api/galaxy/playbooks/{playbook_id}/dependencies`
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": {
+    "playbook_id": 1,
+    "playbook_name": "test",
+    "dependencies": [
+      {
+        "collection": "community.docker",
+        "satisfied": true,
+        "required": true
+      }
+    ],
+    "all_satisfied": true
+  }
+}
+```
+
+**檢查機制**:
+- 解析 Playbook 所有 Tasks 的 YAML 內容
+- 提取使用的 module 名稱 (如 `community.docker.docker_compose_v2`)
+- 比對已安裝的 Collections
+- 返回依賴滿足狀態
+
+---
+
+## AI 對話 API
+
+### 1. 發送訊息
+
+**端點**: `POST /api/ai/messages`
+
+**請求體**:
+```json
+{
+  "message": "如何部署 Nginx?",
+  "context": {
+    "conversation_id": "conv-123",
+    "inventory_id": 1
+  }
+}
+```
+
+**響應範例**:
+```json
+{
+  "success": true,
+  "data": {
+    "conversation_id": "conv-123",
+    "user_message": {
+      "id": "msg-1",
+      "text": "如何部署 Nginx?",
+      "time": "6:30 pm",
+      "is_user": true
+    },
+    "ai_response": {
+      "id": "msg-2",
+      "text": "您可以使用以下 Playbook 部署 Nginx...",
+      "time": "6:30 pm",
+      "is_user": false
+    }
+  }
+}
+```
+
+---
+
+## 資料模型
+
+### Inventory
+```typescript
+interface Inventory {
+  id: number
+  name: string                    // 唯一名稱
+  status: "On" | "Off"            // 伺服器狀態
+  ssh_status: string              // SSH 連線狀態
+  group: string                   // 所屬群組
+  config: string | null           // Ansible inventory 配置
+  created_at: string              // ISO 8601
+  updated_at: string              // ISO 8601
+}
+```
+
+### Playbook
+```typescript
+interface Playbook {
+  id: number
+  name: string                    // 唯一名稱
+  type: "Machine" | "Other"       // 類型
+  status: "Success" | "Fail" | "Not start"
+  target_type: "group" | "host"   // 目標類型
+  group: string | null            // 目標群組
+  host: string | null             // 目標主機
+  gather_facts: boolean           // 收集事實
+  last_run_at: string | null      // 最後執行時間
+  created_at: string
+  updated_at: string
+}
+```
+
+### Task
+```typescript
+interface Task {
+  id: number
+  playbook_id: number             // 所屬 Playbook
+  order: number                   // 執行順序
+  enabled: boolean                // 是否啟用
+  content: string                 // YAML 內容
+  created_at: string
+}
+```
+
+### PlaybookExtraField
+```typescript
+interface PlaybookExtraField {
+  id: number
+  playbook_id: number
+  field_value: string             // JSON 字串
+  // 解析後: { working_directory: string, ... }
+}
+```
+
+### Group
+```typescript
+interface Group {
+  id: number
+  name: string                    // 唯一名稱
+  description: string | null      // 描述 (資料庫有但 schema 未定義)
+  created_at: string
+}
+```
+
+### Host
+```typescript
+interface Host {
+  id: number
+  address: string                 // 唯一地址
+  created_at: string
+}
+```
+
+---
+
+## 錯誤代碼
+
+### HTTP 狀態碼
+
+| 狀態碼 | 說明 |
+|--------|------|
+| 200 | 請求成功 |
+| 201 | 創建成功 |
+| 400 | 請求參數錯誤 |
+| 404 | 資源不存在 |
+| 422 | 驗證失敗 |
+| 500 | 伺服器內部錯誤 |
+
+### 常見錯誤
+
+| 錯誤訊息 | 原因 | 解決方法 |
+|----------|------|----------|
+| "Inventory not found" | Inventory ID 不存在 | 檢查 ID 是否正確 |
+| "Playbook not found" | Playbook ID 不存在 | 檢查 ID 是否正確 |
+| "Group not found" | Group ID 不存在 | 檢查 ID 是否正確 |
+| "UNIQUE constraint failed" | 名稱重複 | 使用不同的名稱 |
+| "Ansible not found" | Ansible 未安裝 | 安裝 Ansible (Windows 需安裝 WSL) |
+| "Command timeout" | 執行超時 | 檢查網路連線或增加 timeout |
+
+---
+
+## 版本歷史
+
+| 版本 | 日期 | 說明 |
+|------|------|------|
+| 2.0 | 2025-11-12 | 更新為實際後端實作規格，新增 Galaxy、Group、Host API |
+| 1.1 | 2025-01-11 | 修正為 camelCase 命名 |
+| 1.0 | 2025-01-10 | 初始版本 |
+
+---
+
+**文件結束**
 
 ## 目錄
 

@@ -74,6 +74,25 @@ export interface PlaybookExecuteRequest {
   extra_vars?: Record<string, any>
 }
 
+export interface PlaybookExecutionResult {
+  id: number
+  name: string
+  status: 'success' | 'failed' | 'error' | 'timeout'
+  message: string
+  output?: string
+  error?: string
+}
+
+export interface PlaybookExecuteResponse {
+  success: boolean
+  data: {
+    job_id: string
+    results: PlaybookExecutionResult[]
+    created_at: string
+  }
+  message: string
+}
+
 // 獲取 Playbook 列表
 export const getPlaybooks = async (params?: {
   search?: string
@@ -116,7 +135,68 @@ export const deletePlaybook = async (id: number): Promise<{ success: boolean; me
 // 執行 Playbooks
 export const executePlaybooks = async (
   data: PlaybookExecuteRequest
-): Promise<{ success: boolean; data: any; message: string }> => {
-  const response = await apiClient.post('/api/playbooks/execute', data)
+): Promise<PlaybookExecuteResponse> => {
+  const response = await apiClient.post('/api/playbooks/execute', data , {timeout: 60000})
+  return response.data
+}
+
+// 中止執行
+export const abortJob = async (jobId: string): Promise<{ success: boolean; message: string }> => {
+  const response = await apiClient.post(`/api/playbooks/jobs/${jobId}/abort`)
+  return response.data
+}
+
+// 獲取 Job 狀態
+export const getJobStatus = async (jobId: string): Promise<{
+  success: boolean
+  data: {
+    job_id: string
+    status: string
+    progress: number
+    results: any[]
+    started_at?: string
+    completed_at?: string
+  }
+}> => {
+  const response = await apiClient.get(`/api/playbooks/jobs/${jobId}/status`)
+  return response.data
+}
+
+export const getExecutionInfo = async (): Promise<{
+  success: boolean
+  data: {
+    platform: {
+      system: string
+      release: string
+      version: string
+      machine: string
+      python_version: string
+    }
+    execution: {
+      method: string
+      current_directory: string
+      project_root: string
+      temp_directory_base: string
+      temp_directory_note: string
+    }
+    ansible: {
+      path: string
+      version: string
+      command_prefix: string
+    }
+    path_conversion?: {
+      windows_path: string
+      wsl_path: string
+    }
+    execution_flow: {
+      step1: string
+      step2: string
+      step3: string
+      step4: string
+      note: string
+    }
+  }
+}> => {
+  const response = await apiClient.get('/api/playbooks/execution-info')
   return response.data
 }

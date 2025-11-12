@@ -10,19 +10,24 @@ import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 from app.database import SessionLocal
-from app.models import Group, Host, Inventory, Playbook, Task
+from app.models import Group, Host, Inventory, Playbook, Task, PlaybookExtraField
 
 def seed_groups():
     """新增 Groups"""
     db = SessionLocal()
     try:
-        groups = ['webservers', 'databases', 'loadbalancers', 'all']
-        for group_name in groups:
-            existing = db.query(Group).filter(Group.name == group_name).first()
+        groups_data = [
+            {'name': 'webservers'},
+            {'name': 'databases'},
+            {'name': 'loadbalancers'},
+            {'name': 'all'}
+        ]
+        for group_data in groups_data:
+            existing = db.query(Group).filter(Group.name == group_data['name']).first()
             if not existing:
-                db.add(Group(name=group_name))
+                db.add(Group(**group_data))
         db.commit()
-        print(f"✅ 已新增 {len(groups)} 個 Groups")
+        print(f"✅ 已新增 {len(groups_data)} 個 Groups")
     finally:
         db.close()
 
@@ -53,16 +58,18 @@ def seed_inventories():
         from app.models import ServerStatus
         inventories = [
             {
-                "name": "Ansible GUI Inventory",
+                "name": "test_inventor",
                 "status": ServerStatus.ON,
                 "ssh_status": "Connected",
-                "config": "server1 ansible_ssh_host=127.0.0.1 ansible_ssh_port=55000 ansible_ssh_pass=docker"
+                "group": "databases",
+                "config": "eason ansible_ssh_host=127.0.0.1 ansible_ssh_port=22 ansible_ssh_user=eason ansible_ssh_pass=ansible123"
             },
             {
-                "name": "Ansible introduction Inventory",
+                "name": "web_server_1",
                 "status": ServerStatus.OFF,
                 "ssh_status": "Unconnected",
-                "config": "[webservers]\n192.168.1.10\n192.168.1.11\n\n[databases]\n192.168.1.12"
+                "group": "webservers",
+                "config": "web1 ansible_ssh_host=192.168.1.10 ansible_ssh_port=22 ansible_ssh_user=admin ansible_ssh_pass=admin123"
             }
         ]
         
@@ -80,57 +87,144 @@ def seed_playbooks():
     db = SessionLocal()
     try:
         from app.models import PlaybookType, ExecutionStatus, TargetType
+        import json
         
-        # Playbook 1
-        pb1 = db.query(Playbook).filter(Playbook.name == "Ansible GUI").first()
+        # Playbook 1: Deploy Demo
+        pb1 = db.query(Playbook).filter(Playbook.name == "test").first()
         if not pb1:
             pb1 = Playbook(
-                name="Ansible GUI",
+                name="test",
                 type=PlaybookType.MACHINE,
                 status=ExecutionStatus.SUCCESS,
                 target_type=TargetType.GROUP,
-                group="webservers",
+                group="databases",
                 gather_facts=False
             )
             db.add(pb1)
             db.flush()
             
-            # Tasks for Playbook 1
+            # Tasks for Deploy Demo Playbook
             tasks1 = [
-                Task(playbook_id=pb1.id, order=0, enabled=True, 
-                     content="name: test1\ncommunity:\n  name: demo\nstate: absent"),
-                Task(playbook_id=pb1.id, order=1, enabled=True, 
-                     content="name: test2\nCommunity2:\n  name: demo\nstate: absent"),
-                Task(playbook_id=pb1.id, order=2, enabled=False, 
-                     content="name: test3\ndebug:\n  msg: \"XXX\"")
+                Task(
+                    playbook_id=pb1.id, 
+                    order=0, 
+                    enabled=True,
+                    content="""name: 11111
+shell: |
+  source ~/.nvm/nvm.sh
+  npm install
+args:
+  chdir: "{{ playbook_dir }}/../../frontend"
+  executable: /bin/bash
+register: npm_install"""
+                ),
+                Task(
+                    playbook_id=pb1.id, 
+                    order=1, 
+                    enabled=True,
+                    content="""name: 22222222222
+shell: |
+  source ~/.nvm/nvm.sh
+  npm run build
+args:
+  chdir: "{{ playbook_dir }}/../../frontend"
+  executable: /bin/bash
+register: npm_build"""
+                ),
+                Task(
+                    playbook_id=pb1.id, 
+                    order=2, 
+                    enabled=True,
+                    content="""name: 3333333333
+community.docker.docker_compose_v2:
+  project_src: "{{ playbook_dir }}/.."
+  build: always
+  state: present
+register: compose_up"""
+                ),
+                Task(
+                    playbook_id=pb1.id, 
+                    order=3, 
+                    enabled=True,
+                    content="""name: 44444444
+debug:
+  msg: "Compose result: {{ compose_up }}" """
+                )
             ]
             for task in tasks1:
                 db.add(task)
+            
+            # 新增 working_directory 到 extra_fields
+            from app.models import PlaybookExtraField
+            extra_field = PlaybookExtraField(
+                playbook_id=pb1.id,
+                field_value=json.dumps({
+                    "working_directory": "C:\\Users\\user\\Desktop\\school_work\\internet_wesly\\Infra_owner_demo\\infra\\ansible"
+                })
+            )
+            db.add(extra_field)
         
-        # Playbook 2
-        pb2 = db.query(Playbook).filter(Playbook.name == "Ansible introduction").first()
+        # Playbook 2: Destroy Demo
+        pb2 = db.query(Playbook).filter(Playbook.name == "destroy_demo").first()
         if not pb2:
             pb2 = Playbook(
-                name="Ansible introduction",
+                name="destroy_demo",
                 type=PlaybookType.MACHINE,
                 status=ExecutionStatus.NOT_START,
-                target_type=TargetType.HOST,
-                host="192.168.1.10",
-                gather_facts=True
+                target_type=TargetType.GROUP,
+                group="databases",
+                gather_facts=False
             )
             db.add(pb2)
             db.flush()
             
-            # Tasks for Playbook 2
+            # Tasks for Destroy Demo Playbook
             tasks2 = [
-                Task(playbook_id=pb2.id, order=0, enabled=True, 
-                     content="name: Install nginx\napt:\n  name: nginx\n  state: present")
+                Task(
+                    playbook_id=pb2.id, 
+                    order=0, 
+                    enabled=True,
+                    content="""name: 停止並移除 Docker Compose 服務
+community.docker.docker_compose_v2:
+  project_src: "{{ playbook_dir }}/.."
+  state: absent
+register: compose_down"""
+                ),
+                Task(
+                    playbook_id=pb2.id, 
+                    order=1, 
+                    enabled=True,
+                    content="""name: 刪除 Docker 映像檔
+community.docker.docker_image:
+  name: vue-static-demo
+  tag: latest
+  state: absent
+  force_absent: true
+register: image_removed"""
+                ),
+                Task(
+                    playbook_id=pb2.id, 
+                    order=2, 
+                    enabled=True,
+                    content="""name: 顯示結果
+debug:
+  msg: "Compose down: {{ compose_down }}, image removed: {{ image_removed }}" """
+                )
             ]
             for task in tasks2:
                 db.add(task)
+            
+            # 新增 working_directory 到 extra_fields
+            extra_field2 = PlaybookExtraField(
+                playbook_id=pb2.id,
+                field_value=json.dumps({
+                    "working_directory": "C:\\Users\\user\\Desktop\\school_work\\internet_wesly\\Infra_owner_demo\\infra\\ansible"
+                })
+            )
+            db.add(extra_field2)
         
         db.commit()
-        print("✅ 已新增 2 個 Playbooks")
+        print("✅ 已新增 2 個 Playbooks (含 working_directory)")
     finally:
         db.close()
 

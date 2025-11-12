@@ -126,20 +126,25 @@ def test_ssh_connection(request: SSHTestRequest, db: Session = Depends(get_db)):
             continue
         
         # 解析 inventory config 獲取 SSH 資訊
-        # 格式: server1 ansible_ssh_host=192.168.1.100 ansible_ssh_port=22 ansible_ssh_pass=password
+        # 格式: server1 ansible_ssh_host=192.168.1.100 ansible_ssh_port=22 ansible_ssh_user=root ansible_ssh_pass=password
+        # 也支援簡寫: ansible_host, ansible_port, ansible_user, ansible_password
         try:
             config_parts = inventory.config.split() if inventory.config else []
             ssh_host = None
             ssh_port = 22
+            ssh_user = None
             ssh_pass = None
             
             for part in config_parts:
-                if part.startswith('ansible_ssh_host='):
-                    ssh_host = part.split('=')[1]
-                elif part.startswith('ansible_ssh_port='):
-                    ssh_port = int(part.split('=')[1])
-                elif part.startswith('ansible_ssh_pass='):
-                    ssh_pass = part.split('=')[1]
+                # 支援完整格式和簡寫格式
+                if part.startswith('ansible_ssh_host=') or part.startswith('ansible_host='):
+                    ssh_host = part.split('=', 1)[1]
+                elif part.startswith('ansible_ssh_port=') or part.startswith('ansible_port='):
+                    ssh_port = int(part.split('=', 1)[1])
+                elif part.startswith('ansible_ssh_user=') or part.startswith('ansible_user='):
+                    ssh_user = part.split('=', 1)[1]
+                elif part.startswith('ansible_ssh_pass=') or part.startswith('ansible_password='):
+                    ssh_pass = part.split('=', 1)[1]
             
             if not ssh_host:
                 results.append({
@@ -147,6 +152,25 @@ def test_ssh_connection(request: SSHTestRequest, db: Session = Depends(get_db)):
                     "name": inventory.name,
                     "status": "error",
                     "message": "SSH host not configured"
+                })
+                continue
+            
+            # 檢查必要的 SSH 參數
+            if not ssh_user:
+                results.append({
+                    "id": inventory.id,
+                    "name": inventory.name,
+                    "status": "error",
+                    "message": "SSH user not configured (use ansible_ssh_user or ansible_user)"
+                })
+                continue
+            
+            if not ssh_pass:
+                results.append({
+                    "id": inventory.id,
+                    "name": inventory.name,
+                    "status": "error",
+                    "message": "SSH password not configured (use ansible_ssh_pass or ansible_password)"
                 })
                 continue
             
@@ -158,7 +182,7 @@ def test_ssh_connection(request: SSHTestRequest, db: Session = Depends(get_db)):
                 client.connect(
                     hostname=ssh_host,
                     port=ssh_port,
-                    username='root',  # 預設使用 root
+                    username=ssh_user,  # 使用從 config 解析的使用者名稱
                     password=ssh_pass,
                     timeout=5
                 )
