@@ -159,7 +159,7 @@ debug:
             extra_field = PlaybookExtraField(
                 playbook_id=pb1.id,
                 field_value=json.dumps({
-                    "working_directory": "C:\\Users\\user\\Desktop\\school_work\\internet_wesly\\Infra_owner_demo\\infra\\ansible"
+                    "working_directory": "C:\\Users\\user\\Desktop\\school_work\\internet_wesly\\Ansible_Auto_Control_Hub\\Infra_owner_demo\\infra\\ansible"
                 })
             )
             db.add(extra_field)
@@ -218,7 +218,7 @@ debug:
             extra_field2 = PlaybookExtraField(
                 playbook_id=pb2.id,
                 field_value=json.dumps({
-                    "working_directory": "C:\\Users\\user\\Desktop\\school_work\\internet_wesly\\Infra_owner_demo\\infra\\ansible"
+                    "working_directory": "C:\\Users\\user\\Desktop\\school_work\\internet_wesly\\Ansible_Auto_Control_Hub\\Infra_owner_demo\\infra\\ansible"
                 })
             )
             db.add(extra_field2)
