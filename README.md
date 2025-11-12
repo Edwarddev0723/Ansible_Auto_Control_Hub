@@ -140,7 +140,7 @@ Ansible                 # 自動化引擎
 #### 1.2 安裝 WSL 2 Ubuntu
 ```powershell
 # 以管理員身份執行 PowerShell
-wsl --install -d Ubuntu-20.04
+wsl --install -d Ubuntu-24.04
 
 # 設定 Ubuntu 使用者名稱和密碼
 # 更新套件並安裝 Ansible
@@ -209,6 +209,16 @@ alembic current
 ```bash
 python seed_data.py
 ```
+### 測試用 Playbook & Inventory 說明
+
+- **測試用 Playbook**
+   - `deploy_demo`：用於建立靜態網站
+   - `destroy_demo`：用於移除整個靜態網站
+   - 部署後可於 `localhost:8080` 觀看測試靜態網站
+
+- **測試用 Inventory**
+   - 範例名稱：`test_inventor`
+   - 請將 `inventorySSH` 設定為您自己的伺服器資訊，否則無法正常連線
 
 #### 4.6 啟動後端服務
 ```bash
