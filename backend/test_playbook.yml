@@ -1,0 +1,10 @@
+﻿---
+- name: test
+  hosts: test_inventor
+  gather_facts: false
+  tasks:
+    - name: 確保前端構建依賴項存在
+      command: npm install
+      args:
+      chdir: "C:\Users\user\Desktop\school_work\internet_wesly\Infra_owner_demo\frontend"
+      register: npm_install
