@@ -1,0 +1,29 @@
+- name: deploy_demo
+  hosts: databases
+  gather_facts: false
+  tasks:
+  - name: 11111
+    shell: |
+      source ~/.nvm/nvm.sh
+      npm install
+    args:
+      chdir: '{{ playbook_dir }}/../../frontend'
+      executable: /bin/bash
+    register: npm_install
+  - name: 22222222222
+    shell: |
+      source ~/.nvm/nvm.sh
+      npm run build
+    args:
+      chdir: '{{ playbook_dir }}/../../frontend'
+      executable: /bin/bash
+    register: npm_build
+  - name: 3333333333
+    community.docker.docker_compose_v2:
+      project_src: '{{ playbook_dir }}/..'
+      state: present
+    register: compose_up
+  - name: 44444444
+    debug:
+      msg: 'Compose result: {{ compose_up }}'
+
