@@ -3,7 +3,7 @@ import axios from 'axios'
 // 建立 Axios 實例
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
-  timeout: 10000,
+  timeout: 120000, // 增加到 120 秒以支援 Ollama 推理
   headers: {
     'Content-Type': 'application/json',
   },

@@ -11,11 +11,18 @@ export interface ChatRequest {
   temperature?: number
 }
 
+export interface ToolCallResult {
+  tool: string
+  arguments: Record<string, any>
+  result: any
+}
+
 export interface ChatResponse {
   success: boolean
   data: {
     role: string
     content: string
+    tool_calls?: ToolCallResult[]
   }
   message: string
 }

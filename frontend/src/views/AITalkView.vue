@@ -33,7 +33,7 @@
               >
                 <div
                   :class="[
-                    'group relative max-w-[80%] lg:max-w-[600px] rounded-2xl px-5 py-4 shadow-sm',
+                    'group relative max-w-[85%] lg:max-w-[800px] rounded-2xl px-5 py-4 shadow-sm',
                     message.isUser
                       ? 'bg-[#5B93FF] text-white'
                       : 'bg-white text-[#333B69]',
@@ -50,12 +50,34 @@
                   </div>
 
                   <!-- Message Content -->
-                  <p
-                    class="text-sm leading-relaxed"
+                  <div
+                    class="text-sm leading-relaxed break-words whitespace-pre-wrap overflow-hidden markdown-content"
                     style="font-family: 'Nunito Sans', sans-serif"
+                    v-html="formatMessage(message.text)"
                   >
-                    {{ message.text }}
-                  </p>
+                  </div>
+
+                  <!-- Tool Calls Display -->
+                  <div v-if="message.toolCalls && message.toolCalls.length > 0" class="mt-3 space-y-2">
+                    <div v-for="(tool, index) in message.toolCalls" :key="index" class="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                      <div class="px-3 py-2 bg-gray-100 border-b border-gray-200 flex items-center gap-2 text-xs font-semibold text-gray-700">
+                        <svg class="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Executed: {{ tool.tool }}
+                      </div>
+                      <details class="group">
+                        <summary class="px-3 py-1 text-xs text-gray-500 cursor-pointer hover:bg-gray-50 select-none flex items-center gap-1">
+                          <span>View Output</span>
+                          <svg class="w-3 h-3 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </summary>
+                        <div class="p-3 bg-gray-900 text-gray-100 text-xs font-mono overflow-x-auto">
+                          <pre>{{ JSON.stringify(tool.result.data || tool.result, null, 2) }}</pre>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
 
                   <!-- Time and Options -->
                   <div class="mt-2 flex items-center justify-end gap-2">
@@ -83,6 +105,17 @@
                         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                       </svg>
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Loading Indicator -->
+              <div v-if="loading" class="flex justify-start">
+                <div class="bg-white rounded-2xl px-5 py-4 shadow-sm">
+                  <div class="flex gap-1">
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
                   </div>
                 </div>
               </div>
@@ -176,6 +209,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { marked } from 'marked'
 import { sendChatMessage, checkAIHealth, type ChatMessage as APIChatMessage } from '@/api/ai'
 
 const router = useRouter()
@@ -190,6 +224,7 @@ interface Message {
   text: string
   time: string
   isUser: boolean
+  toolCalls?: any[]
 }
 
 const messages = ref<Message[]>([
@@ -205,6 +240,15 @@ const messages = ref<Message[]>([
 function getCurrentTime(): string {
   const now = new Date()
   return now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+}
+
+// Format message text (handle markdown)
+const formatMessage = (text: string) => {
+  try {
+    return marked.parse(text)
+  } catch (e) {
+    return text.replace(/\n/g, '<br>')
+  }
 }
 
 // 檢查 AI 服務狀態
@@ -277,16 +321,34 @@ const sendMessage = async () => {
         text: response.data.content,
         time: getCurrentTime(),
         isUser: false,
+        toolCalls: response.data.tool_calls
       })
+      
+      // 簡單的規則：如果回覆以問號結尾，顯示 Yes/No 選項
+      if (response.data.content.trim().endsWith('?')) {
+        quickReplies.value = ['Yes', 'No']
+      } else {
+        quickReplies.value = []
+      }
+      
       scrollToBottom()
     }
   } catch (error: any) {
     console.error('發送訊息失敗:', error)
     
     // 顯示錯誤訊息
+    let errorMessage = '抱歉，AI 服務目前無法使用。'
+    if (error.code === 'ECONNABORTED') {
+      errorMessage = '⏱️ 請求超時，請稍後再試。'
+    } else if (error.response) {
+      errorMessage = `❌ 服務錯誤: ${error.response.status}`
+    } else if (error.request) {
+      errorMessage = '❌ 無法連接到後端服務，請確認服務是否啟動。'
+    }
+    
     messages.value.push({
       id: messages.value.length + 1,
-      text: '抱歉，AI 服務目前無法使用。請稍後再試或聯繫系統管理員。',
+      text: errorMessage,
       time: getCurrentTime(),
       isUser: false,
     })
@@ -333,3 +395,51 @@ const goBack = () => {
   router.push('/')
 }
 </script>
+
+<style>
+.markdown-content p {
+  margin-bottom: 0.5em;
+}
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+.markdown-content ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+  margin-bottom: 0.5em;
+}
+.markdown-content ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+  margin-bottom: 0.5em;
+}
+.markdown-content pre {
+  background-color: #1a202c;
+  color: #e2e8f0;
+  padding: 0.75em;
+  border-radius: 0.5em;
+  overflow-x: auto;
+  margin-bottom: 0.5em;
+  font-family: monospace;
+}
+.markdown-content code {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 0.1em 0.3em;
+  border-radius: 0.2em;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+.markdown-content pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+}
+/* Dark mode adjustments for user messages */
+.bg-\[\#5B93FF\] .markdown-content code {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+.bg-\[\#5B93FF\] .markdown-content pre {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+</style>
