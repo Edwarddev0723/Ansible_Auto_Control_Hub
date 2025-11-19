@@ -1,0 +1,288 @@
+---
+# Docker Compose Deployment Playbook
+# Deploys Infra_owner_demo application to web servers with health checks and rollback capability
+#
+# Usage:
+#   ansible-playbook playbooks/deploy_compose.yml
+#   ansible-playbook playbooks/deploy_compose.yml -e "http_port=8080"
+
+- name: Deploy Docker Compose Application with Health Checks and Rollback
+  hosts: web
+  gather_facts: yes
+  become: "{{ ansible_connection != 'local' }}"
+
+  vars:
+    deployment_start_time: "{{ ansible_date_time.iso8601 }}"
+
+  pre_tasks:
+    - name: Generate deployment run ID
+      ansible.builtin.set_fact:
+        run_id: "{{ ansible_date_time.epoch }}"
+        deployment_timestamp: "{{ ansible_date_time.iso8601 }}"
+        inventory_group: "{{ group_names[0] | default('ungrouped') }}"
+      run_once: true
+
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg:
+          - "=== Deployment Information ==="
+          - "Run ID: {{ run_id }}"
+          - "Timestamp: {{ deployment_timestamp }}"
+          - "Target Group: {{ inventory_group }}"
+          - "Remote Directory: {{ remote_app_dir }}"
+          - "HTTP Port: {{ http_port }}"
+          - "============================="
+
+  tasks:
+    # Block with rollback capability
+    - name: Deploy application with automatic rollback on failure
+      block:
+        # Step 1: Update package cache and install Docker
+        - name: Update apt cache (Debian/Ubuntu)
+          ansible.builtin.apt:
+            update_cache: yes
+            cache_valid_time: 3600
+          when: ansible_os_family == "Debian"
+
+        - name: Update dnf cache (RHEL/CentOS)
+          ansible.builtin.dnf:
+            update_cache: yes
+          when: ansible_os_family == "RedHat"
+
+        - name: Install required packages for Docker (Debian/Ubuntu)
+          ansible.builtin.apt:
+            name:
+              - apt-transport-https
+              - ca-certificates
+              - curl
+              - gnupg
+              - lsb-release
+            state: present
+          when: ansible_os_family == "Debian"
+
+        - name: Add Docker GPG key (Debian/Ubuntu)
+          ansible.builtin.apt_key:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            state: present
+          when: ansible_os_family == "Debian"
+
+        - name: Add Docker repository (Debian/Ubuntu)
+          ansible.builtin.apt_repository:
+            repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+            state: present
+          when: ansible_os_family == "Debian"
+
+        - name: Install Docker and Docker Compose plugin (Debian/Ubuntu)
+          ansible.builtin.apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-compose-plugin
+            state: present
+            update_cache: yes
+          when: ansible_os_family == "Debian"
+
+        - name: Install Docker and Docker Compose plugin (RHEL/CentOS)
+          ansible.builtin.dnf:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-compose-plugin
+            state: present
+          when: ansible_os_family == "RedHat"
+
+        - name: Start and enable Docker service
+          ansible.builtin.service:
+            name: docker
+            state: started
+            enabled: yes
+
+        - name: Wait for Docker daemon to be ready
+          ansible.builtin.command: docker info
+          register: docker_info
+          until: docker_info.rc == 0
+          retries: 5
+          delay: 2
+          changed_when: false
+
+        # Step 2: Create remote application directory
+        - name: Create remote application directory
+          ansible.builtin.file:
+            path: "{{ remote_app_dir }}"
+            state: directory
+            mode: '0755'
+            owner: root
+            group: root
+
+        # Capture current state for rollback
+        - name: Check if docker-compose.yml exists
+          ansible.builtin.stat:
+            path: "{{ remote_app_dir }}/docker-compose.yml"
+          register: compose_file_stat
+
+        - name: Capture current Docker Compose images for rollback
+          ansible.builtin.shell: |
+            if [ -f "{{ remote_app_dir }}/docker-compose.yml" ]; then
+              docker compose -f {{ remote_app_dir }}/docker-compose.yml images --format json 2>/dev/null || echo "[]"
+            else
+              echo "[]"
+            fi
+          args:
+            executable: /bin/bash
+          register: current_images
+          changed_when: false
+          when: compose_file_stat.stat.exists
+
+        - name: Save current images for rollback
+          ansible.builtin.set_fact:
+            rollback_images: "{{ current_images.stdout | default('[]') }}"
+          when: compose_file_stat.stat.exists
+
+        # Step 3: Synchronize application files
+        - name: Synchronize frontend directory
+          ansible.builtin.synchronize:
+            src: "{{ frontend_source_dir }}/"
+            dest: "{{ remote_app_dir }}/frontend/"
+            delete: no
+            recursive: yes
+            rsync_opts:
+              - "--exclude=.git"
+              - "--exclude=node_modules"
+              - "--exclude=__pycache__"
+          delegate_to: localhost
+
+        - name: Copy docker-compose.yaml and rename to docker-compose.yml
+          ansible.builtin.copy:
+            src: "{{ compose_file_local }}"
+            dest: "{{ remote_app_dir }}/docker-compose.yml"
+            mode: '0644'
+
+        - name: Copy Dockerfile
+          ansible.builtin.copy:
+            src: "{{ dockerfile_local }}"
+            dest: "{{ remote_app_dir }}/Dockerfile"
+            mode: '0644'
+
+        - name: Copy nginx.conf
+          ansible.builtin.copy:
+            src: "{{ nginx_conf_local }}"
+            dest: "{{ remote_app_dir }}/nginx.conf"
+            mode: '0644'
+
+        # Step 4: Deploy with Docker Compose v2
+        - name: Build and deploy Docker Compose services
+          community.docker.docker_compose_v2:
+            project_src: "{{ remote_app_dir }}"
+            build: "{{ compose_build }}"
+            pull: "{{ compose_pull_policy }}"
+            state: present
+            recreate: "{{ compose_recreate }}"
+          register: compose_output
+
+        - name: Display Docker Compose deployment output
+          ansible.builtin.debug:
+            var: compose_output
+
+        # Step 5: Health checks
+        - name: Wait for Docker Compose services to be healthy
+          ansible.builtin.shell: |
+            docker compose -f {{ remote_app_dir }}/docker-compose.yml ps --format json
+          args:
+            executable: /bin/bash
+          register: compose_ps_output
+          until: compose_ps_output.rc == 0
+          retries: "{{ health_check_retries }}"
+          delay: "{{ health_check_delay }}"
+          changed_when: false
+
+        - name: Parse and display service status
+          ansible.builtin.debug:
+            msg: "Docker Compose services status: {{ compose_ps_output.stdout }}"
+
+        - name: Verify HTTP endpoint health
+          ansible.builtin.uri:
+            url: "{{ health_check_url }}"
+            method: GET
+            status_code: 200
+            timeout: "{{ health_check_timeout }}"
+          register: http_health_check
+          retries: "{{ health_check_retries }}"
+          delay: "{{ health_check_delay }}"
+          until: http_health_check.status == 200
+
+        - name: Display HTTP health check result
+          ansible.builtin.debug:
+            msg:
+              - "HTTP Health Check: PASSED"
+              - "URL: {{ health_check_url }}"
+              - "Status Code: {{ http_health_check.status }}"
+              - "Response Time: {{ http_health_check.elapsed }}s"
+
+      rescue:
+        # Rollback on failure
+        - name: ROLLBACK - Deployment failed, initiating rollback
+          ansible.builtin.debug:
+            msg:
+              - "=== DEPLOYMENT FAILED ==="
+              - "Initiating automatic rollback..."
+              - "========================="
+
+        - name: ROLLBACK - Stop failed containers
+          community.docker.docker_compose_v2:
+            project_src: "{{ remote_app_dir }}"
+            state: absent
+          ignore_errors: yes
+
+        - name: ROLLBACK - Restore previous images if available
+          ansible.builtin.debug:
+            msg: "Previous images: {{ rollback_images | default('No previous deployment found') }}"
+
+        - name: ROLLBACK - Fail the playbook
+          ansible.builtin.fail:
+            msg: "Deployment failed and rollback completed. Check logs for details."
+
+  post_tasks:
+    - name: Generate deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "=== Deployment Summary ==="
+          - "Status: SUCCESS"
+          - "Run ID: {{ run_id }}"
+          - "Started: {{ deployment_start_time }}"
+          - "Completed: {{ ansible_date_time.iso8601 }}"
+          - "Target: {{ inventory_hostname }}"
+          - "Application Directory: {{ remote_app_dir }}"
+          - "HTTP Endpoint: {{ health_check_url }}"
+          - "Log File: logs/ansible-deployment.log"
+          - "=========================="
+
+    - name: Display final Docker Compose service status
+      ansible.builtin.shell: |
+        docker compose -f {{ remote_app_dir }}/docker-compose.yml ps
+      args:
+        executable: /bin/bash
+      register: final_compose_ps
+      changed_when: false
+
+    - name: Show Docker Compose ps output
+      ansible.builtin.debug:
+        msg: "{{ final_compose_ps.stdout_lines }}"
+
+    - name: Verify HTTP endpoint is accessible
+      ansible.builtin.uri:
+        url: "{{ health_check_url }}"
+        method: GET
+        return_content: yes
+      register: final_http_check
+      changed_when: false
+
+    - name: Display HTTP verification result
+      ansible.builtin.debug:
+        msg:
+          - "=== HTTP Verification ==="
+          - "URL: {{ health_check_url }}"
+          - "Status: {{ final_http_check.status }}"
+          - "Content Length: {{ final_http_check.content_length | default('N/A') }}"
+          - "========================"

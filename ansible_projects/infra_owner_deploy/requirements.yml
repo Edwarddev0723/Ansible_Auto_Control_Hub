@@ -1,0 +1,12 @@
+---
+# Ansible Galaxy Collections Requirements
+# Install with: ansible-galaxy collection install -r requirements.yml
+
+collections:
+  - name: community.docker
+    version: ">=4.8.0"
+    source: https://galaxy.ansible.com
+  
+  - name: ansible.posix
+    version: ">=2.0.0"
+    source: https://galaxy.ansible.com
