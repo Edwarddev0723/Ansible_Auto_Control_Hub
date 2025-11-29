@@ -1,5 +1,5 @@
-- name: deploy_demo
-  hosts: databases
+- name: test
+  hosts: TEST
   gather_facts: false
   tasks:
   - name: 11111
@@ -21,9 +21,9 @@
   - name: 3333333333
     community.docker.docker_compose_v2:
       project_src: '{{ playbook_dir }}/..'
+      build: always
       state: present
     register: compose_up
   - name: 44444444
     debug:
       msg: 'Compose result: {{ compose_up }}'
-

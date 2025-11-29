@@ -280,11 +280,30 @@ class MCPOllamaGateway:
             venv_python = venv_path / "bin" / "python3"
             
             # 注入預設參數
-            if tool_name in ["ansible_ping", "validate_playbook", "ansible_playbook"]:
+            if tool_name == "ansible_ping":
                 if "inventory" not in arguments:
                     arguments["inventory"] = self.ansible_inventory
                 if "project_root" not in arguments:
                     arguments["project_root"] = self.ansible_project_root
+
+            # 統一處理 playbook 路徑修正 (validate_playbook 和 ansible_playbook)
+            if tool_name in ["validate_playbook", "ansible_playbook"]:
+                if "inventory" not in arguments:
+                    arguments["inventory"] = self.ansible_inventory
+                
+                if "playbook_path" in arguments:
+                    pb_path = arguments["playbook_path"]
+                    if not os.path.isabs(pb_path):
+                        # 嘗試 1: 直接接在 project_root 後面
+                        abs_path_1 = os.path.join(self.ansible_project_root, pb_path)
+                        # 嘗試 2: 只取檔名，接在 project_root 後面 (處理 AI 給出多餘路徑的情況)
+                        abs_path_2 = os.path.join(self.ansible_project_root, os.path.basename(pb_path))
+                        
+                        if os.path.exists(abs_path_1):
+                            arguments["playbook_path"] = abs_path_1
+                        elif os.path.exists(abs_path_2):
+                            arguments["playbook_path"] = abs_path_2
+                        # 如果都找不到，保留原值，讓 ansible 報錯或嘗試在 CWD 尋找
             
             if tool_name == "ansible_galaxy_install" and "project_root" not in arguments:
                 arguments["project_root"] = self.ansible_project_root

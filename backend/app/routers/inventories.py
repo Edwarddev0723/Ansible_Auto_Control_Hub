@@ -127,9 +127,26 @@ def test_ssh_connection(request: SSHTestRequest, db: Session = Depends(get_db)):
         
         # 解析 inventory config 獲取 SSH 資訊
         # 格式: server1 ansible_ssh_host=192.168.1.100 ansible_ssh_port=22 ansible_ssh_user=root ansible_ssh_pass=password
-        # 也支援簡寫: ansible_host, ansible_port, ansible_user, ansible_password
+        # 或: server1 ansible_connection=local
         try:
             config_parts = inventory.config.split() if inventory.config else []
+            
+            # 檢查是否為 Local 連線
+            is_local = False
+            for part in config_parts:
+                if part == 'ansible_connection=local':
+                    is_local = True
+                    break
+            
+            if is_local:
+                results.append({
+                    "id": inventory.id,
+                    "name": inventory.name,
+                    "status": "success",
+                    "message": "Local connection (no SSH required)"
+                })
+                continue
+
             ssh_host = None
             ssh_port = 22
             ssh_user = None
